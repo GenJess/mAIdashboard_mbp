@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Users, TrendingUp, Calendar, Target, Award, Clock, Zap } from 'lucide-react';
+import { DollarSign, ShoppingCart, TrendingUp, AlertTriangle, Package, Calendar, Target, Award, Clock, Zap } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 
 type BusinessMetric = Database['public']['Tables']['business_metrics']['Row'];
@@ -27,26 +27,65 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
     if (!isSimulating) {
       fetchMetrics();
       
-      // Set up real-time subscription
-      const channel = supabase
-        .channel('metrics_changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'business_metrics',
-            filter: `business_id=eq.${businessId}`,
-          },
-          (payload) => {
-            console.log('Metrics change received:', payload);
-            fetchMetrics(); // Refetch data on any change
-          }
-        )
-        .subscribe();
+      // Set up real-time subscriptions for all relevant tables
+      const channels = [
+        // Business metrics
+        supabase
+          .channel('metrics_changes')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'business_metrics',
+              filter: `business_id=eq.${businessId}`,
+            },
+            (payload) => {
+              console.log('Metrics change received:', payload);
+              fetchMetrics();
+            }
+          ),
+        
+        // Menu items (for total count)
+        supabase
+          .channel('menu_items_metrics')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'menu_items',
+              filter: `business_id=eq.${businessId}`,
+            },
+            (payload) => {
+              console.log('Menu items change received:', payload);
+              fetchMetrics();
+            }
+          ),
+        
+        // Inventory items (for counts and low stock)
+        supabase
+          .channel('inventory_metrics')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'inventory_items',
+              filter: `business_id=eq.${businessId}`,
+            },
+            (payload) => {
+              console.log('Inventory change received:', payload);
+              fetchMetrics();
+            }
+          ),
+      ];
+
+      // Subscribe to all channels
+      channels.forEach(channel => channel.subscribe());
 
       return () => {
-        supabase.removeChannel(channel);
+        channels.forEach(channel => supabase.removeChannel(channel));
       };
     }
   }, [businessId, isSimulating]);
@@ -54,79 +93,61 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
   // Mock simulation data (existing logic)
   useEffect(() => {
     if (isSimulating) {
-      // Initialize with mock data
+      // Initialize with mock data - updated for new relevant metrics
       const mockMetrics: Metric[] = [
         {
-          id: 'revenue',
-          label: 'Today\'s Revenue',
-          value: 847,
+          id: 'sales_today',
+          label: 'Sales Today',
+          value: 247.50,
           change: 12.5,
           icon: DollarSign,
           color: 'green',
           trend: 'up',
         },
         {
-          id: 'customers',
-          label: 'Customers Served',
-          value: 34,
+          id: 'sales_week',
+          label: 'Sales This Week',
+          value: 1847.25,
           change: 8.3,
-          icon: Users,
+          icon: TrendingUp,
           color: 'blue',
           trend: 'up',
         },
         {
-          id: 'appointments',
-          label: 'Appointments Booked',
-          value: 28,
-          change: -2.1,
-          icon: Calendar,
-          color: 'purple',
+          id: 'low_stock',
+          label: 'Low Stock Items',
+          value: 3,
+          change: -15.2,
+          icon: AlertTriangle,
+          color: 'red',
           trend: 'down',
         },
         {
-          id: 'efficiency',
-          label: 'Service Efficiency',
-          value: '94%',
-          change: 5.7,
-          icon: Zap,
+          id: 'menu_items',
+          label: 'Total Menu Items',
+          value: 12,
+          change: 0,
+          icon: ShoppingCart,
+          color: 'purple',
+          trend: 'stable',
+        },
+        {
+          id: 'inventory_items',
+          label: 'Inventory Items',
+          value: 24,
+          change: 4.2,
+          icon: Package,
           color: 'orange',
           trend: 'up',
         },
         {
-          id: 'leads',
-          label: 'New Leads This Week',
-          value: 15,
-          change: 23.4,
-          icon: Target,
+          id: 'appointments',
+          label: 'Appointments Today',
+          value: 8,
+          change: -2.1,
+          icon: Calendar,
           color: 'indigo',
-          trend: 'up',
-        },
-        {
-          id: 'satisfaction',
-          label: 'Customer Satisfaction',
-          value: '4.8/5',
-          change: 0.2,
-          icon: Award,
-          color: 'pink',
-          trend: 'up',
-        },
-        {
-          id: 'avgTime',
-          label: 'Avg. Service Time',
-          value: '28min',
-          change: -3.1,
-          icon: Clock,
-          color: 'teal',
-          trend: 'up',
-        },
-        {
-          id: 'growth',
-          label: 'Weekly Growth',
-          value: '16.7%',
-          change: 4.2,
-          icon: TrendingUp,
-          color: 'emerald',
-          trend: 'up',
+          trend: 'down',
         },
       ];
       setMetrics(mockMetrics);
@@ -139,19 +160,12 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
             let newValue = metric.value;
             
             if (typeof metric.value === 'number') {
-              newValue = Math.max(0, metric.value + Math.floor(randomChange));
-            } else if (metric.id === 'efficiency' || metric.id === 'growth') {
-              const currentNum = parseFloat(metric.value.toString().replace(/[^\d.]/g, ''));
-              const newNum = Math.max(0, Math.min(100, currentNum + randomChange / 2));
-              newValue = metric.id === 'efficiency' ? `${newNum.toFixed(1)}%` : `${newNum.toFixed(1)}%`;
-            } else if (metric.id === 'satisfaction') {
-              const currentRating = parseFloat(metric.value.toString().split('/')[0]);
-              const newRating = Math.max(1, Math.min(5, currentRating + randomChange / 20));
-              newValue = `${newRating.toFixed(1)}/5`;
-            } else if (metric.id === 'avgTime') {
-              const currentTime = parseInt(metric.value.toString().replace(/\D/g, ''));
-              const newTime = Math.max(5, currentTime + Math.floor(randomChange / 2));
-              newValue = `${newTime}min`;
+              if (metric.id === 'sales_today' || metric.id === 'sales_week') {
+                // For sales, add small amounts
+                newValue = Math.max(0, metric.value + Math.random() * 50);
+              } else {
+                newValue = Math.max(0, metric.value + Math.floor(randomChange / 2));
+              }
             }
 
             return {
@@ -170,51 +184,126 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
 
   const fetchMetrics = async () => {
     try {
-      const { data, error } = await supabase
-        .from('business_metrics')
-        .select('*')
-        .eq('business_id', businessId)
-        .eq('date', new Date().toISOString().split('T')[0]); // Today's metrics
+      const today = new Date().toISOString().split('T')[0];
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      if (error) {
-        console.error('Error fetching metrics:', error);
-        return;
-      }
+      // Fetch all data in parallel
+      const [
+        revenueToday,
+        revenueWeek,
+        inventoryData,
+        menuData,
+        appointmentsToday
+      ] = await Promise.all([
+        // Revenue today
+        supabase
+          .from('business_metrics')
+          .select('metric_value, metric_change')
+          .eq('business_id', businessId)
+          .eq('metric_name', 'revenue')
+          .eq('date', today)
+          .single(),
+        
+        // Revenue this week
+        supabase
+          .from('business_metrics')
+          .select('metric_value')
+          .eq('business_id', businessId)
+          .eq('metric_name', 'revenue')
+          .gte('date', weekAgo),
+        
+        // Inventory data
+        supabase
+          .from('inventory_items')
+          .select('quantity, low_stock_threshold')
+          .eq('business_id', businessId),
+        
+        // Menu items count
+        supabase
+          .from('menu_items')
+          .select('id')
+          .eq('business_id', businessId),
+        
+        // Appointments today
+        supabase
+          .from('appointments')
+          .select('id')
+          .eq('business_id', businessId)
+          .gte('appointment_time', `${today}T00:00:00`)
+          .lt('appointment_time', `${today}T23:59:59`)
+      ]);
 
-      // Convert database metrics to display format
-      const displayMetrics: Metric[] = (data || []).map(dbMetric => {
-        const iconMap: { [key: string]: React.ComponentType<any> } = {
-          revenue: DollarSign,
-          customers: Users,
-          appointments: Calendar,
-          efficiency: Zap,
-          leads: Target,
-          satisfaction: Award,
-          avgTime: Clock,
-          growth: TrendingUp,
-        };
+      // Calculate metrics
+      const salesToday = revenueToday.data?.metric_value ? parseFloat(revenueToday.data.metric_value) : 0;
+      const salesTodayChange = revenueToday.data?.metric_change || 0;
 
-        const colorMap: { [key: string]: string } = {
-          revenue: 'green',
-          customers: 'blue',
-          appointments: 'purple',
-          efficiency: 'orange',
-          leads: 'indigo',
-          satisfaction: 'pink',
-          avgTime: 'teal',
-          growth: 'emerald',
-        };
+      const salesWeek = revenueWeek.data?.reduce((sum, record) => 
+        sum + parseFloat(record.metric_value), 0) || 0;
 
-        return {
-          id: dbMetric.metric_name,
-          label: getLabelForMetric(dbMetric.metric_name),
-          value: dbMetric.metric_name === 'revenue' ? parseInt(dbMetric.metric_value) : dbMetric.metric_value,
-          change: dbMetric.metric_change || 0,
-          icon: iconMap[dbMetric.metric_name] || TrendingUp,
-          color: colorMap[dbMetric.metric_name] || 'gray',
-          trend: (dbMetric.metric_change || 0) > 0 ? 'up' : (dbMetric.metric_change || 0) < 0 ? 'down' : 'stable',
-        };
-      });
+      const lowStockItems = inventoryData.data?.filter(item => 
+        item.quantity <= item.low_stock_threshold).length || 0;
+
+      const totalInventoryItems = inventoryData.data?.length || 0;
+      const totalMenuItems = menuData.data?.length || 0;
+      const appointmentsCount = appointmentsToday.data?.length || 0;
+
+      // Create display metrics
+      const displayMetrics: Metric[] = [
+        {
+          id: 'sales_today',
+          label: 'Sales Today',
+          value: salesToday,
+          change: salesTodayChange,
+          icon: DollarSign,
+          color: 'green',
+          trend: salesTodayChange > 0 ? 'up' : salesTodayChange < 0 ? 'down' : 'stable',
+        },
+        {
+          id: 'sales_week',
+          label: 'Sales This Week',
+          value: salesWeek,
+          change: 0, // Could calculate week-over-week if needed
+          icon: TrendingUp,
+          color: 'blue',
+          trend: 'stable',
+        },
+        {
+          id: 'low_stock',
+          label: 'Low Stock Items',
+          value: lowStockItems,
+          change: 0,
+          icon: AlertTriangle,
+          color: 'red',
+          trend: 'stable',
+        },
+        {
+          id: 'menu_items',
+          label: 'Total Menu Items',
+          value: totalMenuItems,
+          change: 0,
+          icon: ShoppingCart,
+          color: 'purple',
+          trend: 'stable',
+        },
+        {
+          id: 'inventory_items',
+          label: 'Inventory Items',
+          value: totalInventoryItems,
+          change: 0,
+          icon: Package,
+          color: 'orange',
+          trend: 'stable',
+        },
+        {
+          id: 'appointments',
+          label: 'Appointments Today',
+          value: appointmentsCount,
+          change: 0,
+          icon: Calendar,
+          color: 'indigo',
+          trend: 'stable',
+        },
+      ];
 
       setMetrics(displayMetrics);
     } catch (error) {
@@ -222,30 +311,14 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
     }
   };
 
-  const getLabelForMetric = (metricName: string): string => {
-    const labelMap: { [key: string]: string } = {
-      revenue: 'Today\'s Revenue',
-      customers: 'Customers Served',
-      appointments: 'Appointments Booked',
-      efficiency: 'Service Efficiency',
-      leads: 'New Leads This Week',
-      satisfaction: 'Customer Satisfaction',
-      avgTime: 'Avg. Service Time',
-      growth: 'Weekly Growth',
-    };
-    return labelMap[metricName] || metricName;
-  };
-
   const getColorClasses = (color: string) => {
     const colorMap: { [key: string]: { bg: string; text: string; icon: string; border: string } } = {
       green: { bg: 'bg-green-50', text: 'text-green-900', icon: 'text-green-500', border: 'border-green-200' },
       blue: { bg: 'bg-blue-50', text: 'text-blue-900', icon: 'text-blue-500', border: 'border-blue-200' },
+      red: { bg: 'bg-red-50', text: 'text-red-900', icon: 'text-red-500', border: 'border-red-200' },
       purple: { bg: 'bg-purple-50', text: 'text-purple-900', icon: 'text-purple-500', border: 'border-purple-200' },
       orange: { bg: 'bg-orange-50', text: 'text-orange-900', icon: 'text-orange-500', border: 'border-orange-200' },
       indigo: { bg: 'bg-indigo-50', text: 'text-indigo-900', icon: 'text-indigo-500', border: 'border-indigo-200' },
-      pink: { bg: 'bg-pink-50', text: 'text-pink-900', icon: 'text-pink-500', border: 'border-pink-200' },
-      teal: { bg: 'bg-teal-50', text: 'text-teal-900', icon: 'text-teal-500', border: 'border-teal-200' },
-      emerald: { bg: 'bg-emerald-50', text: 'text-emerald-900', icon: 'text-emerald-500', border: 'border-emerald-200' },
     };
     return colorMap[color] || colorMap.blue;
   };
@@ -262,6 +335,13 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
     if (trend === 'up') return '↗';
     if (trend === 'down') return '↘';
     return '→';
+  };
+
+  const formatValue = (metric: Metric) => {
+    if (metric.id === 'sales_today' || metric.id === 'sales_week') {
+      return `$${typeof metric.value === 'number' ? metric.value.toFixed(2) : metric.value}`;
+    }
+    return metric.value;
   };
 
   return (
@@ -287,7 +367,7 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
       </div>
 
       <div className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {metrics.map((metric) => {
             const colors = getColorClasses(metric.color);
             const IconComponent = metric.icon;
@@ -309,10 +389,7 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
                 
                 <div>
                   <div className={`text-2xl font-bold ${colors.text} mb-1`}>
-                    {typeof metric.value === 'number' && metric.id === 'revenue' 
-                      ? `$${metric.value.toLocaleString()}`
-                      : metric.value
-                    }
+                    {formatValue(metric)}
                   </div>
                   <p className="text-sm text-gray-600 font-medium">{metric.label}</p>
                 </div>
@@ -335,7 +412,7 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
               Export Data
             </button>
             <button className="p-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg text-orange-900 font-medium transition-colors">
-              Set Goals
+              Manage Inventory
             </button>
           </div>
         </div>

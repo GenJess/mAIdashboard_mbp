@@ -196,7 +196,67 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
     }
   };
 
+  const updateRevenue = async (saleAmount: number) => {
+    if (isSimulating) return;
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Check if revenue metric exists for today
+      const { data: existingMetric, error: fetchError } = await supabase
+        .from('business_metrics')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('metric_name', 'revenue')
+        .eq('date', today)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error('Error fetching revenue metric:', fetchError);
+        return;
+      }
+
+      if (existingMetric) {
+        // Update existing revenue metric
+        const currentRevenue = parseFloat(existingMetric.metric_value);
+        const newRevenue = currentRevenue + saleAmount;
+        const change = ((newRevenue - currentRevenue) / currentRevenue) * 100;
+
+        const { error: updateError } = await supabase
+          .from('business_metrics')
+          .update({
+            metric_value: newRevenue.toString(),
+            metric_change: change
+          })
+          .eq('id', existingMetric.id);
+
+        if (updateError) {
+          console.error('Error updating revenue metric:', updateError);
+        }
+      } else {
+        // Create new revenue metric for today
+        const { error: insertError } = await supabase
+          .from('business_metrics')
+          .insert({
+            business_id: businessId,
+            metric_name: 'revenue',
+            metric_value: saleAmount.toString(),
+            metric_change: 0,
+            date: today
+          });
+
+        if (insertError) {
+          console.error('Error creating revenue metric:', insertError);
+        }
+      }
+    } catch (error) {
+      console.error('Error updating revenue:', error);
+    }
+  };
+
   const sellItem = async (menuItem: MenuItem, quantity: number = 1) => {
+    const saleAmount = menuItem.price * quantity;
+
     if (!isSimulating) {
       // Update sold count in database
       const { error: menuError } = await supabase
@@ -227,6 +287,9 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
           }
         }
       }
+
+      // Update revenue metrics
+      await updateRevenue(saleAmount);
     } else {
       // Simulation mode - update local state
       setInventory(prevInventory => 
