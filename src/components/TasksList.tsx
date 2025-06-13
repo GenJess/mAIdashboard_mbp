@@ -1,162 +1,257 @@
 import React, { useState, useEffect } from 'react';
 import { CheckSquare, Plus, Clock, AlertCircle, User, Calendar, Trash2 } from 'lucide-react';
+import { supabase, Database } from '../lib/supabase';
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  priority: 'low' | 'medium' | 'high';
-  status: 'pending' | 'in-progress' | 'completed';
-  dueDate: Date;
-  assignee?: string;
-  category: string;
-  createdAt: Date;
-  isNew?: boolean;
-}
+type Task = Database['public']['Tables']['tasks']['Row'];
 
 interface TasksListProps {
+  businessId: string;
   compact?: boolean;
+  isSimulating?: boolean;
 }
 
-const TasksList: React.FC<TasksListProps> = ({ compact = false }) => {
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Clean equipment',
-      description: 'Deep clean all styling equipment and tools',
-      priority: 'high',
-      status: 'pending',
-      dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
-      assignee: 'Sarah Johnson',
-      category: 'Maintenance',
-      createdAt: new Date(Date.now() - 30 * 60 * 1000),
-    },
-    {
-      id: '2',
-      title: 'Restock inventory',
-      description: 'Order new shampoo and conditioner supplies',
-      priority: 'medium',
-      status: 'in-progress',
-      dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-      assignee: 'Mike Davis',
-      category: 'Inventory',
-      createdAt: new Date(Date.now() - 60 * 60 * 1000),
-    },
-    {
-      id: '3',
-      title: 'Update social media',
-      description: 'Post daily content and respond to messages',
-      priority: 'low',
-      status: 'completed',
-      dueDate: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-      assignee: 'Emma Wilson',
-      category: 'Marketing',
-      createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-    },
-    {
-      id: '4',
-      title: 'Client follow-up',
-      description: 'Call clients from last week for feedback',
-      priority: 'medium',
-      status: 'pending',
-      dueDate: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4 hours from now
-      assignee: 'Alex Turner',
-      category: 'Customer Service',
-      createdAt: new Date(Date.now() - 45 * 60 * 1000),
-    },
-  ]);
-
+const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSimulating = true }) => {
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [showAddTask, setShowAddTask] = useState(false);
 
-  // Mock real-time task updates
+  // Real-time data fetching and subscription
   useEffect(() => {
-    const interval = setInterval(() => {
-      const taskTitles = [
-        'Schedule staff meeting',
-        'Review customer feedback',
-        'Update price list',
-        'Order new products',
-        'Prepare monthly report',
-        'Contact suppliers',
-        'Train new employee',
-        'Fix equipment issue',
+    if (!isSimulating) {
+      fetchTasks();
+      
+      // Set up real-time subscription
+      const channel = supabase
+        .channel('tasks_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'tasks',
+            filter: `business_id=eq.${businessId}`,
+          },
+          (payload) => {
+            console.log('Task change received:', payload);
+            fetchTasks(); // Refetch data on any change
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [businessId, isSimulating]);
+
+  // Mock simulation data (existing logic)
+  useEffect(() => {
+    if (isSimulating) {
+      // Initialize with mock data
+      const mockTasks: Task[] = [
+        {
+          id: '1',
+          business_id: businessId,
+          title: 'Clean equipment',
+          description: 'Deep clean all styling equipment and tools',
+          priority: 'high',
+          status: 'pending',
+          due_date: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+          assignee: 'Sarah Johnson',
+          category: 'Maintenance',
+          created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+        },
+        {
+          id: '2',
+          business_id: businessId,
+          title: 'Restock inventory',
+          description: 'Order new shampoo and conditioner supplies',
+          priority: 'medium',
+          status: 'in-progress',
+          due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          assignee: 'Mike Davis',
+          category: 'Inventory',
+          created_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: '3',
+          business_id: businessId,
+          title: 'Update social media',
+          description: 'Post daily content and respond to messages',
+          priority: 'low',
+          status: 'completed',
+          due_date: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          assignee: 'Emma Wilson',
+          category: 'Marketing',
+          created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+          id: '4',
+          business_id: businessId,
+          title: 'Client follow-up',
+          description: 'Call clients from last week for feedback',
+          priority: 'medium',
+          status: 'pending',
+          due_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+          assignee: 'Alex Turner',
+          category: 'Customer Service',
+          created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+          updated_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+        },
       ];
-      
-      const categories = ['Operations', 'HR', 'Finance', 'Marketing', 'Maintenance'];
-      const assignees = ['Sarah Johnson', 'Mike Davis', 'Emma Wilson', 'Alex Turner', 'Lisa Brown'];
-      
-      const newTask: Task = {
-        id: Date.now().toString(),
-        title: taskTitles[Math.floor(Math.random() * taskTitles.length)],
-        description: 'Generated task from voice command',
-        priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as any,
-        status: 'pending',
-        dueDate: new Date(Date.now() + Math.random() * 48 * 60 * 60 * 1000), // Random time in next 48 hours
-        assignee: assignees[Math.floor(Math.random() * assignees.length)],
-        category: categories[Math.floor(Math.random() * categories.length)],
-        createdAt: new Date(),
-        isNew: true,
-      };
+      setTasks(mockTasks);
 
-      setTasks(prev => {
-        const updated = [newTask, ...prev];
-        return updated.slice(0, compact ? 4 : 10);
-      });
+      // Mock real-time task updates
+      const interval = setInterval(() => {
+        const taskTitles = [
+          'Schedule staff meeting',
+          'Review customer feedback',
+          'Update price list',
+          'Order new products',
+          'Prepare monthly report',
+          'Contact suppliers',
+          'Train new employee',
+          'Fix equipment issue',
+        ];
+        
+        const categories = ['Operations', 'HR', 'Finance', 'Marketing', 'Maintenance'];
+        const assignees = ['Sarah Johnson', 'Mike Davis', 'Emma Wilson', 'Alex Turner', 'Lisa Brown'];
+        
+        const newTask: Task = {
+          id: Date.now().toString(),
+          business_id: businessId,
+          title: taskTitles[Math.floor(Math.random() * taskTitles.length)],
+          description: 'Generated task from voice command',
+          priority: ['low', 'medium', 'high'][Math.floor(Math.random() * 3)] as any,
+          status: 'pending',
+          due_date: new Date(Date.now() + Math.random() * 48 * 60 * 60 * 1000).toISOString(),
+          assignee: assignees[Math.floor(Math.random() * assignees.length)],
+          category: categories[Math.floor(Math.random() * categories.length)],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
 
-      // Remove the "new" flag after animation
-      setTimeout(() => {
-        setTasks(prev => 
-          prev.map(task => task.id === newTask.id ? { ...task, isNew: false } : task)
-        );
-      }, 3000);
-    }, 12000);
+        setTasks(prev => {
+          const updated = [newTask, ...prev];
+          return updated.slice(0, compact ? 4 : 10);
+        });
+      }, 12000);
 
-    return () => clearInterval(interval);
-  }, [compact]);
+      return () => clearInterval(interval);
+    }
+  }, [businessId, compact, isSimulating]);
 
-  const toggleTaskStatus = (taskId: string) => {
-    setTasks(prevTasks =>
-      prevTasks.map(task => {
-        if (task.id === taskId) {
-          const newStatus = task.status === 'completed' ? 'pending' : 
-                           task.status === 'pending' ? 'in-progress' : 'completed';
-          return { ...task, status: newStatus };
-        }
-        return task;
-      })
-    );
-  };
+  const fetchTasks = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: false })
+        .limit(compact ? 4 : 20);
 
-  const addTask = () => {
-    if (newTaskTitle.trim()) {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        title: newTaskTitle.trim(),
-        description: 'Task added via dashboard',
-        priority: 'medium',
-        status: 'pending',
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-        category: 'General',
-        createdAt: new Date(),
-        isNew: true,
-      };
+      if (error) {
+        console.error('Error fetching tasks:', error);
+        return;
+      }
 
-      setTasks(prev => [newTask, ...prev]);
-      setNewTaskTitle('');
-      setShowAddTask(false);
-
-      // Remove the "new" flag after animation
-      setTimeout(() => {
-        setTasks(prev => 
-          prev.map(task => task.id === newTask.id ? { ...task, isNew: false } : task)
-        );
-      }, 3000);
+      setTasks(data || []);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
     }
   };
 
-  const deleteTask = (taskId: string) => {
-    setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+  const toggleTaskStatus = async (taskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const newStatus = task.status === 'completed' ? 'pending' : 
+                     task.status === 'pending' ? 'in-progress' : 'completed';
+
+    if (!isSimulating) {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: newStatus })
+        .eq('id', taskId);
+
+      if (error) {
+        console.error('Error updating task:', error);
+        return;
+      }
+    } else {
+      // Simulation mode - update local state
+      setTasks(prevTasks =>
+        prevTasks.map(task => {
+          if (task.id === taskId) {
+            return { ...task, status: newStatus };
+          }
+          return task;
+        })
+      );
+    }
+  };
+
+  const addTask = async () => {
+    if (newTaskTitle.trim()) {
+      const newTaskData = {
+        business_id: businessId,
+        title: newTaskTitle.trim(),
+        description: 'Task added via dashboard',
+        priority: 'medium' as const,
+        status: 'pending' as const,
+        due_date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        category: 'General',
+      };
+
+      if (!isSimulating) {
+        const { data, error } = await supabase
+          .from('tasks')
+          .insert(newTaskData)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating task:', error);
+          return;
+        }
+
+        // Task will be added via real-time subscription
+      } else {
+        // Simulation mode - add to local state
+        const newTask: Task = {
+          id: Date.now().toString(),
+          ...newTaskData,
+          assignee: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        setTasks(prev => [newTask, ...prev]);
+      }
+
+      setNewTaskTitle('');
+      setShowAddTask(false);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    if (!isSimulating) {
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) {
+        console.error('Error deleting task:', error);
+        return;
+      }
+    } else {
+      // Simulation mode - update local state
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    }
   };
 
   const getPriorityColor = (priority: string) => {
@@ -177,7 +272,10 @@ const TasksList: React.FC<TasksListProps> = ({ compact = false }) => {
     }
   };
 
-  const formatDueDate = (date: Date) => {
+  const formatDueDate = (dateString: string | null) => {
+    if (!dateString) return 'No due date';
+    
+    const date = new Date(dateString);
     const now = new Date();
     const diffInHours = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60));
     
@@ -189,8 +287,9 @@ const TasksList: React.FC<TasksListProps> = ({ compact = false }) => {
     return `Due in ${Math.floor(diffInHours / 24)} days`;
   };
 
-  const isOverdue = (date: Date) => {
-    return date.getTime() < new Date().getTime();
+  const isOverdue = (dateString: string | null) => {
+    if (!dateString) return false;
+    return new Date(dateString).getTime() < new Date().getTime();
   };
 
   const displayTasks = compact ? tasks.slice(0, 4) : tasks;
@@ -203,6 +302,11 @@ const TasksList: React.FC<TasksListProps> = ({ compact = false }) => {
             <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
               <CheckSquare className="w-5 h-5 text-blue-500" />
               <span>Tasks & To-Do List</span>
+              {!compact && !isSimulating && (
+                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                  Live Data
+                </span>
+              )}
               {!compact && <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>}
             </h2>
             <p className="text-gray-600 text-sm mt-1">
@@ -255,12 +359,10 @@ const TasksList: React.FC<TasksListProps> = ({ compact = false }) => {
           {displayTasks.map((task) => (
             <div
               key={task.id}
-              className={`p-4 rounded-lg border transition-all duration-500 ${
-                task.isNew 
-                  ? 'bg-blue-50 border-blue-200 scale-105 shadow-md' 
-                  : task.status === 'completed'
+              className={`p-4 rounded-lg border transition-all duration-300 ${
+                task.status === 'completed'
                   ? 'bg-green-50 border-green-200'
-                  : isOverdue(task.dueDate)
+                  : isOverdue(task.due_date)
                   ? 'bg-red-50 border-red-200'
                   : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
               }`}
@@ -288,11 +390,6 @@ const TasksList: React.FC<TasksListProps> = ({ compact = false }) => {
                       }`}>
                         {task.title}
                       </h3>
-                      {task.isNew && (
-                        <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full animate-pulse">
-                          New
-                        </span>
-                      )}
                     </div>
                     
                     {!compact && (
@@ -307,11 +404,11 @@ const TasksList: React.FC<TasksListProps> = ({ compact = false }) => {
                         {task.status.charAt(0).toUpperCase() + task.status.slice(1).replace('-', ' ')}
                       </span>
                       <span className={`flex items-center space-x-1 ${
-                        isOverdue(task.dueDate) ? 'text-red-600' : 'text-gray-500'
+                        isOverdue(task.due_date) ? 'text-red-600' : 'text-gray-500'
                       }`}>
-                        {isOverdue(task.dueDate) && <AlertCircle className="w-3 h-3" />}
+                        {isOverdue(task.due_date) && <AlertCircle className="w-3 h-3" />}
                         <Clock className="w-3 h-3" />
-                        <span>{formatDueDate(task.dueDate)}</span>
+                        <span>{formatDueDate(task.due_date)}</span>
                       </span>
                       {task.assignee && (
                         <span className="flex items-center space-x-1 text-gray-500">

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { DollarSign, Users, TrendingUp, Calendar, Target, Award, Clock, Zap } from 'lucide-react';
+import { supabase, Database } from '../lib/supabase';
+
+type BusinessMetric = Database['public']['Tables']['business_metrics']['Row'];
 
 interface Metric {
   id: string;
@@ -11,118 +14,227 @@ interface Metric {
   trend: 'up' | 'down' | 'stable';
 }
 
-const BusinessMetrics: React.FC = () => {
-  const [metrics, setMetrics] = useState<Metric[]>([
-    {
-      id: 'revenue',
-      label: 'Today\'s Revenue',
-      value: 847,
-      change: 12.5,
-      icon: DollarSign,
-      color: 'green',
-      trend: 'up',
-    },
-    {
-      id: 'customers',
-      label: 'Customers Served',
-      value: 34,
-      change: 8.3,
-      icon: Users,
-      color: 'blue',
-      trend: 'up',
-    },
-    {
-      id: 'appointments',
-      label: 'Appointments Booked',
-      value: 28,
-      change: -2.1,
-      icon: Calendar,
-      color: 'purple',
-      trend: 'down',
-    },
-    {
-      id: 'efficiency',
-      label: 'Service Efficiency',
-      value: '94%',
-      change: 5.7,
-      icon: Zap,
-      color: 'orange',
-      trend: 'up',
-    },
-    {
-      id: 'leads',
-      label: 'New Leads This Week',
-      value: 15,
-      change: 23.4,
-      icon: Target,
-      color: 'indigo',
-      trend: 'up',
-    },
-    {
-      id: 'satisfaction',
-      label: 'Customer Satisfaction',
-      value: '4.8/5',
-      change: 0.2,
-      icon: Award,
-      color: 'pink',
-      trend: 'up',
-    },
-    {
-      id: 'avgTime',
-      label: 'Avg. Service Time',
-      value: '28min',
-      change: -3.1,
-      icon: Clock,
-      color: 'teal',
-      trend: 'up',
-    },
-    {
-      id: 'growth',
-      label: 'Weekly Growth',
-      value: '16.7%',
-      change: 4.2,
-      icon: TrendingUp,
-      color: 'emerald',
-      trend: 'up',
-    },
-  ]);
+interface BusinessMetricsProps {
+  businessId: string;
+  isSimulating?: boolean;
+}
 
-  // Mock real-time updates
+const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulating = true }) => {
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+
+  // Real-time data fetching and subscription
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMetrics(prevMetrics => 
-        prevMetrics.map(metric => {
-          const randomChange = (Math.random() - 0.5) * 10; // Random change between -5 and 5
-          let newValue = metric.value;
-          
-          if (typeof metric.value === 'number') {
-            newValue = Math.max(0, metric.value + Math.floor(randomChange));
-          } else if (metric.id === 'efficiency' || metric.id === 'growth') {
-            const currentNum = parseFloat(metric.value.toString().replace(/[^\d.]/g, ''));
-            const newNum = Math.max(0, Math.min(100, currentNum + randomChange / 2));
-            newValue = metric.id === 'efficiency' ? `${newNum.toFixed(1)}%` : `${newNum.toFixed(1)}%`;
-          } else if (metric.id === 'satisfaction') {
-            const currentRating = parseFloat(metric.value.toString().split('/')[0]);
-            const newRating = Math.max(1, Math.min(5, currentRating + randomChange / 20));
-            newValue = `${newRating.toFixed(1)}/5`;
-          } else if (metric.id === 'avgTime') {
-            const currentTime = parseInt(metric.value.toString().replace(/\D/g, ''));
-            const newTime = Math.max(5, currentTime + Math.floor(randomChange / 2));
-            newValue = `${newTime}min`;
+    if (!isSimulating) {
+      fetchMetrics();
+      
+      // Set up real-time subscription
+      const channel = supabase
+        .channel('metrics_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'business_metrics',
+            filter: `business_id=eq.${businessId}`,
+          },
+          (payload) => {
+            console.log('Metrics change received:', payload);
+            fetchMetrics(); // Refetch data on any change
           }
+        )
+        .subscribe();
 
-          return {
-            ...metric,
-            value: newValue,
-            change: metric.change + (randomChange / 5),
-            trend: randomChange > 0 ? 'up' as const : randomChange < 0 ? 'down' as const : 'stable' as const,
-          };
-        })
-      );
-    }, 5000);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [businessId, isSimulating]);
 
-    return () => clearInterval(interval);
-  }, []);
+  // Mock simulation data (existing logic)
+  useEffect(() => {
+    if (isSimulating) {
+      // Initialize with mock data
+      const mockMetrics: Metric[] = [
+        {
+          id: 'revenue',
+          label: 'Today\'s Revenue',
+          value: 847,
+          change: 12.5,
+          icon: DollarSign,
+          color: 'green',
+          trend: 'up',
+        },
+        {
+          id: 'customers',
+          label: 'Customers Served',
+          value: 34,
+          change: 8.3,
+          icon: Users,
+          color: 'blue',
+          trend: 'up',
+        },
+        {
+          id: 'appointments',
+          label: 'Appointments Booked',
+          value: 28,
+          change: -2.1,
+          icon: Calendar,
+          color: 'purple',
+          trend: 'down',
+        },
+        {
+          id: 'efficiency',
+          label: 'Service Efficiency',
+          value: '94%',
+          change: 5.7,
+          icon: Zap,
+          color: 'orange',
+          trend: 'up',
+        },
+        {
+          id: 'leads',
+          label: 'New Leads This Week',
+          value: 15,
+          change: 23.4,
+          icon: Target,
+          color: 'indigo',
+          trend: 'up',
+        },
+        {
+          id: 'satisfaction',
+          label: 'Customer Satisfaction',
+          value: '4.8/5',
+          change: 0.2,
+          icon: Award,
+          color: 'pink',
+          trend: 'up',
+        },
+        {
+          id: 'avgTime',
+          label: 'Avg. Service Time',
+          value: '28min',
+          change: -3.1,
+          icon: Clock,
+          color: 'teal',
+          trend: 'up',
+        },
+        {
+          id: 'growth',
+          label: 'Weekly Growth',
+          value: '16.7%',
+          change: 4.2,
+          icon: TrendingUp,
+          color: 'emerald',
+          trend: 'up',
+        },
+      ];
+      setMetrics(mockMetrics);
+
+      // Mock real-time updates
+      const interval = setInterval(() => {
+        setMetrics(prevMetrics => 
+          prevMetrics.map(metric => {
+            const randomChange = (Math.random() - 0.5) * 10; // Random change between -5 and 5
+            let newValue = metric.value;
+            
+            if (typeof metric.value === 'number') {
+              newValue = Math.max(0, metric.value + Math.floor(randomChange));
+            } else if (metric.id === 'efficiency' || metric.id === 'growth') {
+              const currentNum = parseFloat(metric.value.toString().replace(/[^\d.]/g, ''));
+              const newNum = Math.max(0, Math.min(100, currentNum + randomChange / 2));
+              newValue = metric.id === 'efficiency' ? `${newNum.toFixed(1)}%` : `${newNum.toFixed(1)}%`;
+            } else if (metric.id === 'satisfaction') {
+              const currentRating = parseFloat(metric.value.toString().split('/')[0]);
+              const newRating = Math.max(1, Math.min(5, currentRating + randomChange / 20));
+              newValue = `${newRating.toFixed(1)}/5`;
+            } else if (metric.id === 'avgTime') {
+              const currentTime = parseInt(metric.value.toString().replace(/\D/g, ''));
+              const newTime = Math.max(5, currentTime + Math.floor(randomChange / 2));
+              newValue = `${newTime}min`;
+            }
+
+            return {
+              ...metric,
+              value: newValue,
+              change: metric.change + (randomChange / 5),
+              trend: randomChange > 0 ? 'up' as const : randomChange < 0 ? 'down' as const : 'stable' as const,
+            };
+          })
+        );
+      }, 5000);
+
+      return () => clearInterval(interval);
+    }
+  }, [businessId, isSimulating]);
+
+  const fetchMetrics = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('business_metrics')
+        .select('*')
+        .eq('business_id', businessId)
+        .eq('date', new Date().toISOString().split('T')[0]); // Today's metrics
+
+      if (error) {
+        console.error('Error fetching metrics:', error);
+        return;
+      }
+
+      // Convert database metrics to display format
+      const displayMetrics: Metric[] = (data || []).map(dbMetric => {
+        const iconMap: { [key: string]: React.ComponentType<any> } = {
+          revenue: DollarSign,
+          customers: Users,
+          appointments: Calendar,
+          efficiency: Zap,
+          leads: Target,
+          satisfaction: Award,
+          avgTime: Clock,
+          growth: TrendingUp,
+        };
+
+        const colorMap: { [key: string]: string } = {
+          revenue: 'green',
+          customers: 'blue',
+          appointments: 'purple',
+          efficiency: 'orange',
+          leads: 'indigo',
+          satisfaction: 'pink',
+          avgTime: 'teal',
+          growth: 'emerald',
+        };
+
+        return {
+          id: dbMetric.metric_name,
+          label: getLabelForMetric(dbMetric.metric_name),
+          value: dbMetric.metric_name === 'revenue' ? parseInt(dbMetric.metric_value) : dbMetric.metric_value,
+          change: dbMetric.metric_change || 0,
+          icon: iconMap[dbMetric.metric_name] || TrendingUp,
+          color: colorMap[dbMetric.metric_name] || 'gray',
+          trend: (dbMetric.metric_change || 0) > 0 ? 'up' : (dbMetric.metric_change || 0) < 0 ? 'down' : 'stable',
+        };
+      });
+
+      setMetrics(displayMetrics);
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+    }
+  };
+
+  const getLabelForMetric = (metricName: string): string => {
+    const labelMap: { [key: string]: string } = {
+      revenue: 'Today\'s Revenue',
+      customers: 'Customers Served',
+      appointments: 'Appointments Booked',
+      efficiency: 'Service Efficiency',
+      leads: 'New Leads This Week',
+      satisfaction: 'Customer Satisfaction',
+      avgTime: 'Avg. Service Time',
+      growth: 'Weekly Growth',
+    };
+    return labelMap[metricName] || metricName;
+  };
 
   const getColorClasses = (color: string) => {
     const colorMap: { [key: string]: { bg: string; text: string; icon: string; border: string } } = {
@@ -161,8 +273,15 @@ const BusinessMetrics: React.FC = () => {
               <TrendingUp className="w-5 h-5 text-blue-500" />
               <span>Business Metrics</span>
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              {!isSimulating && (
+                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                  Live Data
+                </span>
+              )}
             </h2>
-            <p className="text-gray-600 text-sm mt-1">Real-time performance indicators</p>
+            <p className="text-gray-600 text-sm mt-1">
+              {isSimulating ? 'Simulated performance indicators' : 'Real-time performance indicators'}
+            </p>
           </div>
         </div>
       </div>

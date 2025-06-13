@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Phone, PhoneCall, PhoneOff, User, Clock, Mic, MicOff, Volume2 } from 'lucide-react';
+import { supabase, Database } from '../lib/supabase';
+
+type Call = Database['public']['Tables']['calls']['Row'];
 
 interface LiveCall {
   id: string;
@@ -11,75 +14,112 @@ interface LiveCall {
   purpose?: string;
 }
 
-const LiveCallsWidget: React.FC = () => {
+interface LiveCallsWidgetProps {
+  businessId: string;
+  isSimulating?: boolean;
+}
+
+const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulating = true }) => {
   const [activeCalls, setActiveCalls] = useState<LiveCall[]>([]);
   const [callHistory, setCallHistory] = useState<Array<{ caller: string; time: Date; duration: number }>>([]);
   const [isAgentActive, setIsAgentActive] = useState(false);
+  const [dbCalls, setDbCalls] = useState<Call[]>([]);
 
-  // Mock live call simulation
+  // Real-time data fetching and subscription
   useEffect(() => {
-    const interval = setInterval(() => {
-      const shouldStartCall = Math.random() > 0.85; // 15% chance every interval
+    if (!isSimulating) {
+      fetchCalls();
       
-      if (shouldStartCall && activeCalls.length === 0) {
-        const callers = [
-          { name: 'Sarah Johnson', phone: '(555) 123-4567', purpose: 'Appointment booking' },
-          { name: 'Mike Davis', phone: '(555) 987-6543', purpose: 'Service inquiry' },
-          { name: 'Emma Wilson', phone: '(555) 456-7890', purpose: 'Rescheduling' },
-          { name: 'Alex Turner', phone: '(555) 321-0987', purpose: 'Product question' },
-          { name: 'Lisa Brown', phone: '(555) 654-3210', purpose: 'Booking consultation' },
-        ];
-        
-        const randomCaller = callers[Math.floor(Math.random() * callers.length)];
-        
-        const newCall: LiveCall = {
-          id: Date.now().toString(),
-          caller: randomCaller.name,
-          phoneNumber: randomCaller.phone,
-          duration: 0,
-          status: 'incoming',
-          startTime: new Date(),
-          purpose: randomCaller.purpose,
-        };
-        
-        setActiveCalls([newCall]);
-        setIsAgentActive(true);
-        
-        // Auto-answer after 3 seconds
-        setTimeout(() => {
-          setActiveCalls(prev => 
-            prev.map(call => 
-              call.id === newCall.id 
-                ? { ...call, status: 'active' as const }
-                : call
-            )
-          );
-        }, 3000);
-        
-        // End call after 15-45 seconds
-        const callDuration = 15000 + Math.random() * 30000;
-        setTimeout(() => {
-          setActiveCalls(prev => {
-            const endedCall = prev.find(call => call.id === newCall.id);
-            if (endedCall) {
-              setCallHistory(prevHistory => [
-                {
-                  caller: endedCall.caller,
-                  time: endedCall.startTime,
-                  duration: Math.floor(callDuration / 1000),
-                },
-                ...prevHistory.slice(0, 4), // Keep only last 5 calls
-              ]);
-            }
-            return prev.filter(call => call.id !== newCall.id);
-          });
-          setIsAgentActive(false);
-        }, callDuration);
-      }
-    }, 8000);
+      // Set up real-time subscription
+      const channel = supabase
+        .channel('calls_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'calls',
+            filter: `business_id=eq.${businessId}`,
+          },
+          (payload) => {
+            console.log('Call change received:', payload);
+            fetchCalls(); // Refetch data on any change
+          }
+        )
+        .subscribe();
 
-    return () => clearInterval(interval);
-  }, [activeCalls.length]);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [businessId, isSimulating]);
+
+  // Mock simulation data (existing logic)
+  useEffect(() => {
+    if (isSimulating) {
+      const interval = setInterval(() => {
+        const shouldStartCall = Math.random() > 0.85; // 15% chance every interval
+        
+        if (shouldStartCall && activeCalls.length === 0) {
+          const callers = [
+            { name: 'Sarah Johnson', phone: '(555) 123-4567', purpose: 'Appointment booking' },
+            { name: 'Mike Davis', phone: '(555) 987-6543', purpose: 'Service inquiry' },
+            { name: 'Emma Wilson', phone: '(555) 456-7890', purpose: 'Rescheduling' },
+            { name: 'Alex Turner', phone: '(555) 321-0987', purpose: 'Product question' },
+            { name: 'Lisa Brown', phone: '(555) 654-3210', purpose: 'Booking consultation' },
+          ];
+          
+          const randomCaller = callers[Math.floor(Math.random() * callers.length)];
+          
+          const newCall: LiveCall = {
+            id: Date.now().toString(),
+            caller: randomCaller.name,
+            phoneNumber: randomCaller.phone,
+            duration: 0,
+            status: 'incoming',
+            startTime: new Date(),
+            purpose: randomCaller.purpose,
+          };
+          
+          setActiveCalls([newCall]);
+          setIsAgentActive(true);
+          
+          // Auto-answer after 3 seconds
+          setTimeout(() => {
+            setActiveCalls(prev => 
+              prev.map(call => 
+                call.id === newCall.id 
+                  ? { ...call, status: 'active' as const }
+                  : call
+              )
+            );
+          }, 3000);
+          
+          // End call after 15-45 seconds
+          const callDuration = 15000 + Math.random() * 30000;
+          setTimeout(() => {
+            setActiveCalls(prev => {
+              const endedCall = prev.find(call => call.id === newCall.id);
+              if (endedCall) {
+                setCallHistory(prevHistory => [
+                  {
+                    caller: endedCall.caller,
+                    time: endedCall.startTime,
+                    duration: Math.floor(callDuration / 1000),
+                  },
+                  ...prevHistory.slice(0, 4), // Keep only last 5 calls
+                ]);
+              }
+              return prev.filter(call => call.id !== newCall.id);
+            });
+            setIsAgentActive(false);
+          }, callDuration);
+        }
+      }, 8000);
+
+      return () => clearInterval(interval);
+    }
+  }, [activeCalls.length, isSimulating]);
 
   // Update call duration
   useEffect(() => {
@@ -94,6 +134,37 @@ const LiveCallsWidget: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const fetchCalls = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('calls')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching calls:', error);
+        return;
+      }
+
+      setDbCalls(data || []);
+      
+      // Convert to call history format
+      const history = (data || [])
+        .filter(call => call.status === 'completed')
+        .map(call => ({
+          caller: call.caller_name,
+          time: new Date(call.started_at),
+          duration: call.duration || 0,
+        }));
+      
+      setCallHistory(history.slice(0, 5));
+    } catch (error) {
+      console.error('Error fetching calls:', error);
+    }
+  };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -119,6 +190,13 @@ const LiveCallsWidget: React.FC = () => {
     }
   };
 
+  const displayCalls = isSimulating ? activeCalls : [];
+  const displayHistory = isSimulating ? callHistory : callHistory;
+  const totalCalls = isSimulating ? callHistory.length : dbCalls.length;
+  const avgDuration = isSimulating 
+    ? (callHistory.length > 0 ? Math.round(callHistory.reduce((acc, call) => acc + call.duration, 0) / callHistory.length) : 0)
+    : (dbCalls.length > 0 ? Math.round(dbCalls.reduce((acc, call) => acc + (call.duration || 0), 0) / dbCalls.length) : 0);
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="p-6 border-b border-gray-200">
@@ -128,9 +206,14 @@ const LiveCallsWidget: React.FC = () => {
               <Phone className="w-5 h-5 text-blue-500" />
               <span>Live Calls</span>
               <div className={`w-2 h-2 rounded-full ${isAgentActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
+              {!isSimulating && (
+                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                  Live Data
+                </span>
+              )}
             </h2>
             <p className="text-gray-600 text-sm mt-1">
-              {activeCalls.length > 0 ? 'AI agent handling calls' : 'Waiting for calls'}
+              {displayCalls.length > 0 ? 'AI agent handling calls' : 'Waiting for calls'}
             </p>
           </div>
           
@@ -151,14 +234,14 @@ const LiveCallsWidget: React.FC = () => {
 
       <div className="max-h-[400px] overflow-y-auto">
         {/* Active Calls */}
-        {activeCalls.length > 0 && (
+        {displayCalls.length > 0 && (
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
               <PhoneCall className="w-4 h-4 text-green-500" />
               <span>Active Call</span>
             </h3>
             
-            {activeCalls.map((call) => (
+            {displayCalls.map((call) => (
               <div
                 key={call.id}
                 className={`p-4 rounded-lg border transition-all duration-300 ${
@@ -218,9 +301,9 @@ const LiveCallsWidget: React.FC = () => {
             <span>Recent Calls</span>
           </h3>
           
-          {callHistory.length > 0 ? (
+          {displayHistory.length > 0 ? (
             <div className="space-y-3">
-              {callHistory.map((call, index) => (
+              {displayHistory.map((call, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
@@ -250,20 +333,16 @@ const LiveCallsWidget: React.FC = () => {
         <div className="p-6 border-t border-gray-200 bg-gray-50">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-blue-600">{callHistory.length}</div>
+              <div className="text-2xl font-bold text-blue-600">{totalCalls}</div>
               <div className="text-xs text-gray-600">Calls Today</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600">
-                {callHistory.length > 0 
-                  ? Math.round(callHistory.reduce((acc, call) => acc + call.duration, 0) / callHistory.length)
-                  : 0}s
-              </div>
+              <div className="text-2xl font-bold text-green-600">{avgDuration}s</div>
               <div className="text-xs text-gray-600">Avg Duration</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-purple-600">
-                {activeCalls.length > 0 ? '100%' : '0%'}
+                {displayCalls.length > 0 ? '100%' : '0%'}
               </div>
               <div className="text-xs text-gray-600">Answer Rate</div>
             </div>

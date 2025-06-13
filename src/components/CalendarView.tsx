@@ -1,49 +1,145 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Clock, User, Calendar } from 'lucide-react';
+import { supabase, Database } from '../lib/supabase';
+
+type Appointment = Database['public']['Tables']['appointments']['Row'];
 
 interface CalendarProps {
+  businessId: string;
   compact?: boolean;
+  isSimulating?: boolean;
 }
 
-interface Appointment {
-  id: string;
-  time: string;
-  client: string;
-  service: string;
-  status: 'confirmed' | 'pending' | 'completed';
-}
-
-const CalendarView: React.FC<CalendarProps> = ({ compact = false }) => {
+const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, isSimulating = true }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
-  const [appointments, setAppointments] = useState<Appointment[]>([
-    { id: '1', time: '09:00', client: 'John Smith', service: 'Haircut', status: 'confirmed' },
-    { id: '2', time: '10:30', client: 'Sarah Johnson', service: 'Color Treatment', status: 'pending' },
-    { id: '3', time: '14:00', client: 'Mike Davis', service: 'Beard Trim', status: 'confirmed' },
-    { id: '4', time: '15:30', client: 'Emma Wilson', service: 'Styling', status: 'completed' },
-  ]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-  // Mock real-time appointment updates
+  // Real-time data fetching and subscription
   useEffect(() => {
-    const interval = setInterval(() => {
-      const newAppointment: Appointment = {
-        id: Date.now().toString(),
-        time: `${Math.floor(Math.random() * 12) + 9}:${Math.random() > 0.5 ? '00' : '30'}`,
-        client: ['Alex Turner', 'Lisa Brown', 'David Miller', 'Rachel Green'][Math.floor(Math.random() * 4)],
-        service: ['Haircut', 'Massage', 'Consultation', 'Treatment'][Math.floor(Math.random() * 4)],
-        status: 'pending' as const,
+    if (!isSimulating) {
+      fetchAppointments();
+      
+      // Set up real-time subscription
+      const channel = supabase
+        .channel('calendar_appointments_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'appointments',
+            filter: `business_id=eq.${businessId}`,
+          },
+          (payload) => {
+            console.log('Calendar appointment change received:', payload);
+            fetchAppointments(); // Refetch data on any change
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
       };
+    }
+  }, [businessId, isSimulating]);
 
-      setAppointments(prev => {
-        if (prev.length > 6) {
-          return [newAppointment, ...prev.slice(0, 5)];
-        }
-        return [newAppointment, ...prev];
-      });
-    }, 8000);
+  // Mock simulation data (existing logic)
+  useEffect(() => {
+    if (isSimulating) {
+      // Initialize with mock data
+      const mockAppointments: Appointment[] = [
+        {
+          id: '1',
+          business_id: businessId,
+          client_name: 'John Smith',
+          client_phone: '(555) 123-4567',
+          service: 'Haircut',
+          status: 'confirmed',
+          appointment_time: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '2',
+          business_id: businessId,
+          client_name: 'Sarah Johnson',
+          client_phone: '(555) 987-6543',
+          service: 'Color Treatment',
+          status: 'pending',
+          appointment_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '3',
+          business_id: businessId,
+          client_name: 'Mike Davis',
+          client_phone: '(555) 456-7890',
+          service: 'Beard Trim',
+          status: 'confirmed',
+          appointment_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '4',
+          business_id: businessId,
+          client_name: 'Emma Wilson',
+          client_phone: '(555) 321-0987',
+          service: 'Styling',
+          status: 'completed',
+          appointment_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+      setAppointments(mockAppointments);
 
-    return () => clearInterval(interval);
-  }, []);
+      // Mock real-time appointment updates
+      const interval = setInterval(() => {
+        const newAppointment: Appointment = {
+          id: Date.now().toString(),
+          business_id: businessId,
+          client_name: ['Alex Turner', 'Lisa Brown', 'David Miller', 'Rachel Green'][Math.floor(Math.random() * 4)],
+          client_phone: `(555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+          service: ['Haircut', 'Massage', 'Consultation', 'Treatment'][Math.floor(Math.random() * 4)],
+          status: 'pending' as const,
+          appointment_time: new Date(Date.now() + Math.random() * 24 * 60 * 60 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        setAppointments(prev => {
+          if (prev.length > 6) {
+            return [newAppointment, ...prev.slice(0, 5)];
+          }
+          return [newAppointment, ...prev];
+        });
+      }, 8000);
+
+      return () => clearInterval(interval);
+    }
+  }, [businessId, isSimulating]);
+
+  const fetchAppointments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('business_id', businessId)
+        .order('appointment_time', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        return;
+      }
+
+      setAppointments(data || []);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+    }
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -91,6 +187,23 @@ const CalendarView: React.FC<CalendarProps> = ({ compact = false }) => {
     setCurrentDate(newDate);
   };
 
+  const formatAppointmentTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { 
+      hour: 'numeric', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const getAppointmentsForDay = (day: number) => {
+    const dayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    return appointments.filter(apt => {
+      const aptDate = new Date(apt.appointment_time);
+      return aptDate.toDateString() === dayDate.toDateString();
+    });
+  };
+
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -107,6 +220,11 @@ const CalendarView: React.FC<CalendarProps> = ({ compact = false }) => {
             <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
               <Calendar className="w-5 h-5 text-blue-500" />
               <span>Calendar</span>
+              {!isSimulating && (
+                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                  Live Data
+                </span>
+              )}
             </h2>
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button
@@ -168,31 +286,40 @@ const CalendarView: React.FC<CalendarProps> = ({ compact = false }) => {
 
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-1">
-              {getDaysInMonth(currentDate).map((day, index) => (
-                <div
-                  key={index}
-                  className={`min-h-[80px] p-2 border border-gray-100 rounded-lg ${
-                    day === null 
-                      ? 'bg-gray-50' 
-                      : day === new Date().getDate() && 
-                        currentDate.getMonth() === new Date().getMonth() &&
-                        currentDate.getFullYear() === new Date().getFullYear()
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-white hover:bg-gray-50'
-                  } transition-colors cursor-pointer`}
-                >
-                  {day && (
-                    <>
-                      <div className="font-medium text-gray-900 mb-1">{day}</div>
-                      {appointments.slice(0, 2).map((apt, i) => (
-                        <div key={i} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-1 truncate">
-                          {apt.time} - {apt.client}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              ))}
+              {getDaysInMonth(currentDate).map((day, index) => {
+                const dayAppointments = day ? getAppointmentsForDay(day) : [];
+                
+                return (
+                  <div
+                    key={index}
+                    className={`min-h-[80px] p-2 border border-gray-100 rounded-lg ${
+                      day === null 
+                        ? 'bg-gray-50' 
+                        : day === new Date().getDate() && 
+                          currentDate.getMonth() === new Date().getMonth() &&
+                          currentDate.getFullYear() === new Date().getFullYear()
+                        ? 'bg-blue-50 border-blue-200'
+                        : 'bg-white hover:bg-gray-50'
+                    } transition-colors cursor-pointer`}
+                  >
+                    {day && (
+                      <>
+                        <div className="font-medium text-gray-900 mb-1">{day}</div>
+                        {dayAppointments.slice(0, 2).map((apt, i) => (
+                          <div key={i} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-1 truncate">
+                            {formatAppointmentTime(apt.appointment_time)} - {apt.client_name}
+                          </div>
+                        ))}
+                        {dayAppointments.length > 2 && (
+                          <div className="text-xs text-gray-500">
+                            +{dayAppointments.length - 2} more
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -221,19 +348,23 @@ const CalendarView: React.FC<CalendarProps> = ({ compact = false }) => {
                   <div className="p-2 text-sm text-gray-500 text-right">
                     {hour}:00
                   </div>
-                  {getWeekDays().map((day, dayIndex) => (
-                    <div key={dayIndex} className="min-h-[40px] border border-gray-100 rounded hover:bg-blue-50 transition-colors cursor-pointer">
-                      {appointments
-                        .filter(apt => apt.time.startsWith(hour.toString()))
-                        .slice(0, 1)
-                        .map((apt, i) => (
+                  {getWeekDays().map((day, dayIndex) => {
+                    const dayAppointments = appointments.filter(apt => {
+                      const aptDate = new Date(apt.appointment_time);
+                      return aptDate.toDateString() === day.toDateString() &&
+                             aptDate.getHours() === hour;
+                    });
+
+                    return (
+                      <div key={dayIndex} className="min-h-[40px] border border-gray-100 rounded hover:bg-blue-50 transition-colors cursor-pointer">
+                        {dayAppointments.slice(0, 1).map((apt, i) => (
                           <div key={i} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded m-1 truncate">
-                            {apt.client}
+                            {apt.client_name}
                           </div>
-                        ))
-                      }
-                    </div>
-                  ))}
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
