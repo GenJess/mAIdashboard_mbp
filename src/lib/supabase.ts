@@ -152,6 +152,10 @@ export interface Database {
           due_date: string | null;
           assignee: string | null;
           category: string;
+          is_recurring: boolean;
+          recurrence_pattern: Record<string, any>;
+          parent_task_id: string | null;
+          next_due_date: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -165,6 +169,10 @@ export interface Database {
           due_date?: string | null;
           assignee?: string | null;
           category?: string;
+          is_recurring?: boolean;
+          recurrence_pattern?: Record<string, any>;
+          parent_task_id?: string | null;
+          next_due_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -178,6 +186,10 @@ export interface Database {
           due_date?: string | null;
           assignee?: string | null;
           category?: string;
+          is_recurring?: boolean;
+          recurrence_pattern?: Record<string, any>;
+          parent_task_id?: string | null;
+          next_due_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
