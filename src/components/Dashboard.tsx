@@ -6,11 +6,20 @@ import BusinessMetrics from './BusinessMetrics';
 import TasksList from './TasksList';
 import VoiceAgentWidget from './VoiceAgentWidget';
 import LiveCallsWidget from './LiveCallsWidget';
-import { Mic, Activity, Calendar, Package, BarChart3, CheckSquare } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { Database } from '../lib/supabase';
+import { Mic, Activity, Calendar, Package, BarChart3, CheckSquare, LogOut } from 'lucide-react';
 
-const Dashboard: React.FC = () => {
+type Business = Database['public']['Tables']['businesses']['Row'];
+
+interface DashboardProps {
+  business: Business;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ business }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isLiveMode, setIsLiveMode] = useState(true);
+  const { signOut } = useAuth();
 
   // Mock real-time activity indicator
   useEffect(() => {
@@ -19,6 +28,10 @@ const Dashboard: React.FC = () => {
     }, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -30,13 +43,26 @@ const Dashboard: React.FC = () => {
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <Activity className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-semibold text-gray-900">Business Dashboard</h1>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">{business.name}</h1>
+                <p className="text-sm text-gray-500 capitalize">{business.type} Dashboard</p>
+              </div>
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${isLiveMode ? 'bg-green-500' : 'bg-green-400'} animate-pulse`}></div>
                 <span className="text-sm text-gray-600">Live</span>
               </div>
             </div>
-            <VoiceAgentWidget />
+            
+            <div className="flex items-center space-x-4">
+              <VoiceAgentWidget />
+              <button
+                onClick={handleSignOut}
+                className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -73,13 +99,13 @@ const Dashboard: React.FC = () => {
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-              <BusinessMetrics />
-              <CalendarView compact />
+              <BusinessMetrics businessId={business.id} />
+              <CalendarView businessId={business.id} compact />
             </div>
             <div className="space-y-8">
-              <LiveCallsWidget />
-              <AppointmentsFeed />
-              <TasksList compact />
+              <LiveCallsWidget businessId={business.id} />
+              <AppointmentsFeed businessId={business.id} />
+              <TasksList businessId={business.id} compact />
             </div>
           </div>
         )}
@@ -87,16 +113,16 @@ const Dashboard: React.FC = () => {
         {activeTab === 'calendar' && (
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
             <div className="xl:col-span-3">
-              <CalendarView />
+              <CalendarView businessId={business.id} />
             </div>
             <div>
-              <AppointmentsFeed />
+              <AppointmentsFeed businessId={business.id} />
             </div>
           </div>
         )}
 
-        {activeTab === 'menu' && <MenuInventory />}
-        {activeTab === 'tasks' && <TasksList />}
+        {activeTab === 'menu' && <MenuInventory businessId={business.id} />}
+        {activeTab === 'tasks' && <TasksList businessId={business.id} />}
       </main>
     </div>
   );
