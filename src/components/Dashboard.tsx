@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import CalendarView from './CalendarView';
 import AppointmentsFeed from './AppointmentsFeed';
 import MenuInventory from './MenuInventory';
@@ -6,9 +6,10 @@ import BusinessMetrics from './BusinessMetrics';
 import TasksList from './TasksList';
 import VoiceAgentWidget from './VoiceAgentWidget';
 import LiveCallsWidget from './LiveCallsWidget';
+import LiveFeed from './LiveFeed';
 import { useAuth } from '../hooks/useAuth';
 import { Database } from '../lib/supabase';
-import { Mic, Activity, Calendar, Package, BarChart3, CheckSquare, LogOut } from 'lucide-react';
+import { Activity, Calendar, Package, BarChart3, CheckSquare, LogOut, Rss } from 'lucide-react';
 
 type Business = Database['public']['Tables']['businesses']['Row'];
 
@@ -18,19 +19,15 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ business }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isLiveMode, setIsLiveMode] = useState(true);
+  const [isLiveMode, setIsLiveMode] = useState(false); // Start with simulation mode
   const { signOut } = useAuth();
-
-  // Mock real-time activity indicator
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setIsLiveMode(prev => !prev);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
 
   const handleSignOut = async () => {
     await signOut();
+  };
+
+  const toggleDataMode = () => {
+    setIsLiveMode(!isLiveMode);
   };
 
   return (
@@ -47,10 +44,22 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
                 <h1 className="text-xl font-semibold text-gray-900">{business.name}</h1>
                 <p className="text-sm text-gray-500 capitalize">{business.type} Dashboard</p>
               </div>
-              <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${isLiveMode ? 'bg-green-500' : 'bg-green-400'} animate-pulse`}></div>
-                <span className="text-sm text-gray-600">Live</span>
-              </div>
+              
+              {/* Data Mode Toggle */}
+              <button
+                onClick={toggleDataMode}
+                title="Simulated is fake data, live is real data"
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                  isLiveMode
+                    ? 'bg-green-100 hover:bg-green-200 text-green-800 border-2 border-green-300'
+                    : 'bg-blue-100 hover:bg-blue-200 text-blue-800 border-2 border-blue-300'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isLiveMode ? 'bg-green-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`}></div>
+                <span className="font-semibold">
+                  {isLiveMode ? 'Live Data' : 'Simulated Data'}
+                </span>
+              </button>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -76,6 +85,7 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
               { id: 'calendar', label: 'Calendar', icon: Calendar },
               { id: 'menu', label: 'Menu & Inventory', icon: Package },
               { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+              { id: 'livefeed', label: 'Live Feed', icon: Rss },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -99,13 +109,13 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
-              <BusinessMetrics businessId={business.id} />
-              <CalendarView businessId={business.id} compact />
+              <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
+              <CalendarView businessId={business.id} compact isSimulating={!isLiveMode} />
             </div>
             <div className="space-y-8">
-              <LiveCallsWidget businessId={business.id} />
-              <AppointmentsFeed businessId={business.id} />
-              <TasksList businessId={business.id} compact />
+              <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
+              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
+              <TasksList businessId={business.id} compact isSimulating={!isLiveMode} />
             </div>
           </div>
         )}
@@ -113,16 +123,17 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         {activeTab === 'calendar' && (
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
             <div className="xl:col-span-3">
-              <CalendarView businessId={business.id} />
+              <CalendarView businessId={business.id} isSimulating={!isLiveMode} />
             </div>
             <div>
-              <AppointmentsFeed businessId={business.id} />
+              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
             </div>
           </div>
         )}
 
-        {activeTab === 'menu' && <MenuInventory businessId={business.id} />}
-        {activeTab === 'tasks' && <TasksList businessId={business.id} />}
+        {activeTab === 'menu' && <MenuInventory businessId={business.id} isSimulating={!isLiveMode} />}
+        {activeTab === 'tasks' && <TasksList businessId={business.id} isSimulating={!isLiveMode} />}
+        {activeTab === 'livefeed' && <LiveFeed businessId={business.id} isSimulating={!isLiveMode} />}
       </main>
     </div>
   );
