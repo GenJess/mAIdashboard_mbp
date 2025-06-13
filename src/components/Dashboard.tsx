@@ -5,6 +5,7 @@ import MenuInventory from './MenuInventory';
 import BusinessMetrics from './BusinessMetrics';
 import TasksList from './TasksList';
 import VoiceAgentWidget from './VoiceAgentWidget';
+import LiveCallsWidget from './LiveCallsWidget';
 import { Mic, Activity, Calendar, Package, BarChart3, CheckSquare } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
@@ -76,6 +77,7 @@ const Dashboard: React.FC = () => {
               <CalendarView compact />
             </div>
             <div className="space-y-8">
+              <LiveCallsWidget />
               <AppointmentsFeed />
               <TasksList compact />
             </div>
