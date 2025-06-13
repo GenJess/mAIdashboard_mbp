@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Clock, User, Calendar, Package, CheckSquare, Phone, TrendingUp, ArrowRight, Filter } from 'lucide-react';
+import { Activity, Clock, User, Calendar, Package, CheckSquare, Phone, TrendingUp, ArrowRight, Filter, Star, Zap } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 
 type ActivityItem = {
@@ -297,30 +297,38 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
       },
       {
         id: 'mock-2',
-        type: 'task',
-        action: 'completed',
-        title: 'Clean equipment',
-        description: 'Task completed - Priority: high',
-        timestamp: new Date(Date.now() - 10 * 60 * 1000),
-      },
-      {
-        id: 'mock-3',
-        type: 'inventory',
-        action: 'updated',
-        title: 'Inventory: Shampoo',
-        description: 'Stock level: 15 bottles (Low stock alert)',
-        timestamp: new Date(Date.now() - 15 * 60 * 1000),
-      },
-      {
-        id: 'mock-4',
         type: 'call',
         action: 'created',
         title: 'Call from Mike Davis',
         description: 'Status: completed - Duration: 45s',
-        timestamp: new Date(Date.now() - 20 * 60 * 1000),
+        timestamp: new Date(Date.now() - 8 * 60 * 1000),
+      },
+      {
+        id: 'mock-3',
+        type: 'menu',
+        action: 'updated',
+        title: 'Sale: Hamburger',
+        description: 'Item sold - Revenue: $12.99',
+        timestamp: new Date(Date.now() - 12 * 60 * 1000),
+      },
+      {
+        id: 'mock-4',
+        type: 'task',
+        action: 'completed',
+        title: 'Clean equipment',
+        description: 'Task completed - Priority: high',
+        timestamp: new Date(Date.now() - 15 * 60 * 1000),
       },
       {
         id: 'mock-5',
+        type: 'inventory',
+        action: 'updated',
+        title: 'Inventory: Shampoo',
+        description: 'Stock level: 15 bottles (Low stock alert)',
+        timestamp: new Date(Date.now() - 20 * 60 * 1000),
+      },
+      {
+        id: 'mock-6',
         type: 'metric',
         action: 'updated',
         title: 'Metric: Daily Revenue',
@@ -333,19 +341,30 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
 
     // Simulate real-time updates
     const interval = setInterval(() => {
-      const types: ActivityItem['type'][] = ['appointment', 'task', 'inventory', 'menu', 'call', 'metric'];
+      const coreTypes: ActivityItem['type'][] = ['appointment', 'call', 'menu'];
+      const operationalTypes: ActivityItem['type'][] = ['task', 'inventory', 'metric'];
+      const allTypes = [...coreTypes, ...operationalTypes];
       const actions: ActivityItem['action'][] = ['created', 'updated', 'completed'];
       
-      const randomType = types[Math.floor(Math.random() * types.length)];
+      const randomType = allTypes[Math.floor(Math.random() * allTypes.length)];
       const randomAction = actions[Math.floor(Math.random() * actions.length)];
       
       const titles = {
         appointment: ['New appointment booked', 'Appointment confirmed', 'Appointment completed'],
+        call: ['Incoming call received', 'Call completed', 'Customer inquiry'],
+        menu: ['Item sold', 'New sale recorded', 'Revenue generated'],
         task: ['New task created', 'Task updated', 'Task completed'],
         inventory: ['Stock updated', 'Low stock alert', 'Inventory restocked'],
-        menu: ['Menu item updated', 'New sale recorded', 'Price updated'],
-        call: ['Incoming call', 'Call completed', 'Missed call'],
         metric: ['Revenue updated', 'Customer count updated', 'Performance metric updated'],
+      };
+      
+      const descriptions = {
+        appointment: ['Client booking confirmed', 'Service appointment scheduled', 'Customer visit completed'],
+        call: ['Customer service call', 'Sales inquiry handled', 'Support request resolved'],
+        menu: ['Product purchase completed', 'Service payment received', 'Transaction processed'],
+        task: ['Operational task assigned', 'Maintenance activity', 'Administrative update'],
+        inventory: ['Stock level changed', 'Supply management update', 'Inventory adjustment'],
+        metric: ['Business performance data', 'Analytics update', 'KPI measurement'],
       };
       
       const newActivity: ActivityItem = {
@@ -353,7 +372,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
         type: randomType,
         action: randomAction,
         title: titles[randomType][Math.floor(Math.random() * titles[randomType].length)],
-        description: 'Simulated activity update',
+        description: descriptions[randomType][Math.floor(Math.random() * descriptions[randomType].length)],
         timestamp: new Date(),
       };
 
@@ -361,6 +380,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
     }, 8000);
 
     return () => clearInterval(interval);
+  };
+
+  // Helper function to determine if activity is core business activity
+  const isCoreBusinessActivity = (type: ActivityItem['type']) => {
+    return ['appointment', 'call', 'menu'].includes(type);
   };
 
   const getActivityIcon = (type: ActivityItem['type']) => {
@@ -376,17 +400,39 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
   };
 
   const getActivityColor = (type: ActivityItem['type'], action: ActivityItem['action']) => {
-    if (action === 'completed') return 'text-green-600 bg-green-100';
-    if (action === 'deleted') return 'text-red-600 bg-red-100';
+    const isCore = isCoreBusinessActivity(type);
+    
+    if (action === 'completed') return isCore ? 'text-green-600 bg-green-100' : 'text-green-600 bg-green-50';
+    if (action === 'deleted') return isCore ? 'text-red-600 bg-red-100' : 'text-red-600 bg-red-50';
     
     switch (type) {
       case 'appointment': return 'text-blue-600 bg-blue-100';
-      case 'task': return 'text-purple-600 bg-purple-100';
-      case 'inventory': return 'text-orange-600 bg-orange-100';
-      case 'menu': return 'text-green-600 bg-green-100';
       case 'call': return 'text-indigo-600 bg-indigo-100';
-      case 'metric': return 'text-pink-600 bg-pink-100';
+      case 'menu': return 'text-green-600 bg-green-100';
+      case 'task': return 'text-purple-600 bg-purple-50';
+      case 'inventory': return 'text-orange-600 bg-orange-50';
+      case 'metric': return 'text-pink-600 bg-pink-50';
       default: return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getActivityContainerStyle = (type: ActivityItem['type'], action: ActivityItem['action']) => {
+    const isCore = isCoreBusinessActivity(type);
+    
+    if (isCore) {
+      // Core business activities get prominent styling
+      return {
+        container: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 shadow-sm',
+        hover: 'hover:from-blue-100 hover:to-indigo-100 hover:shadow-md',
+        badge: 'bg-blue-500 text-white'
+      };
+    } else {
+      // Operational activities get subtle styling
+      return {
+        container: 'bg-gray-50 border-l-4 border-gray-300',
+        hover: 'hover:bg-gray-100',
+        badge: 'bg-gray-400 text-white'
+      };
     }
   };
 
@@ -402,14 +448,21 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
 
   const filteredActivities = filter === 'all' 
     ? activities 
+    : filter === 'core'
+    ? activities.filter(activity => isCoreBusinessActivity(activity.type))
+    : filter === 'operational'
+    ? activities.filter(activity => !isCoreBusinessActivity(activity.type))
     : activities.filter(activity => activity.type === filter);
 
   const filterOptions = [
     { value: 'all', label: 'All Activities', icon: Activity },
+    { value: 'core', label: 'Core Business', icon: Star },
+    { value: 'operational', label: 'Operational', icon: CheckSquare },
     { value: 'appointment', label: 'Appointments', icon: Calendar },
+    { value: 'call', label: 'Calls', icon: Phone },
+    { value: 'menu', label: 'Sales', icon: Package },
     { value: 'task', label: 'Tasks', icon: CheckSquare },
     { value: 'inventory', label: 'Inventory', icon: Package },
-    { value: 'call', label: 'Calls', icon: Phone },
     { value: 'metric', label: 'Metrics', icon: TrendingUp },
   ];
 
@@ -455,11 +508,25 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
         {/* Connection Status */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-gray-600">
-                {isConnected ? 'Connected to live data stream' : 'Connecting...'}
-              </span>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="text-gray-600">
+                  {isConnected ? 'Connected to live data stream' : 'Connecting...'}
+                </span>
+              </div>
+              
+              {/* Activity Type Legend */}
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-1">
+                  <Star className="w-3 h-3 text-blue-500" />
+                  <span className="text-xs text-gray-500">Core Business</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <CheckSquare className="w-3 h-3 text-gray-400" />
+                  <span className="text-xs text-gray-500">Operational</span>
+                </div>
+              </div>
             </div>
             <span className="text-gray-500">
               {filteredActivities.length} activities
@@ -476,19 +543,38 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               {filteredActivities.map((activity) => {
                 const IconComponent = getActivityIcon(activity.type);
                 const colorClasses = getActivityColor(activity.type, activity.action);
+                const containerStyle = getActivityContainerStyle(activity.type, activity.action);
+                const isCore = isCoreBusinessActivity(activity.type);
                 
                 return (
-                  <div key={activity.id} className="p-6 hover:bg-gray-50 transition-colors">
+                  <div 
+                    key={activity.id} 
+                    className={`p-6 transition-all duration-200 ${containerStyle.container} ${containerStyle.hover}`}
+                  >
                     <div className="flex items-start space-x-4">
-                      <div className={`p-2 rounded-lg ${colorClasses}`}>
-                        <IconComponent className="w-4 h-4" />
+                      <div className="relative">
+                        <div className={`p-2 rounded-lg ${colorClasses}`}>
+                          <IconComponent className="w-4 h-4" />
+                        </div>
+                        {isCore && (
+                          <div className="absolute -top-1 -right-1">
+                            <Zap className="w-3 h-3 text-yellow-500 fill-current" />
+                          </div>
+                        )}
                       </div>
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {activity.title}
-                          </h3>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-sm font-medium text-gray-900 truncate">
+                              {activity.title}
+                            </h3>
+                            {isCore && (
+                              <span className="px-2 py-1 text-xs font-bold bg-blue-500 text-white rounded-full">
+                                CORE
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center space-x-2 text-xs text-gray-500">
                             <Clock className="w-3 h-3" />
                             <span>{formatTimeAgo(activity.timestamp)}</span>
