@@ -27,14 +27,15 @@ export function useBusiness() {
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
-        .single();
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching business:', error);
         return;
       }
 
-      setBusiness(data);
+      // Set the first business if data exists, otherwise null
+      setBusiness(data && data.length > 0 ? data[0] : null);
     } catch (error) {
       console.error('Error fetching business:', error);
     } finally {
@@ -62,10 +63,29 @@ export function useBusiness() {
       }
 
       setBusiness(data);
+
+      // Seed the business with demo data
+      await seedBusinessData(data.id);
+
       return { data };
     } catch (error) {
       console.error('Error creating business:', error);
       return { error };
+    }
+  };
+
+  const seedBusinessData = async (businessId: string) => {
+    try {
+      // Call the seed function
+      const { error } = await supabase.rpc('seed_business_data', {
+        business_uuid: businessId
+      });
+
+      if (error) {
+        console.error('Error seeding business data:', error);
+      }
+    } catch (error) {
+      console.error('Error seeding business data:', error);
     }
   };
 
