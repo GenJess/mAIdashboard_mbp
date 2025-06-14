@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import CalendarView from './CalendarView';
 import AppointmentsFeed from './AppointmentsFeed';
 import MenuInventory from './MenuInventory';
@@ -7,11 +7,9 @@ import TasksList from './TasksList';
 import VoiceAgentWidget from './VoiceAgentWidget';
 import LiveCallsWidget from './LiveCallsWidget';
 import LiveFeed from './LiveFeed';
-import AppointmentForm from './AppointmentForm';
 import { useAuth } from '../hooks/useAuth';
 import { Database } from '../lib/supabase';
 import { Activity, Calendar, Package, BarChart3, CheckSquare, LogOut, Rss } from 'lucide-react';
-import dayjs from 'dayjs';
 
 type Business = Database['public']['Tables']['businesses']['Row'];
 
@@ -21,19 +19,8 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ business }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  // Use localStorage to persist the data mode selection
-  const [isLiveMode, setIsLiveMode] = useState(() => {
-    const saved = localStorage.getItem('dashboard-live-mode');
-    return saved ? JSON.parse(saved) : false;
-  });
-  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
-  const [selectedAppointmentTime, setSelectedAppointmentTime] = useState<Date | null>(null);
+  const [isLiveMode, setIsLiveMode] = useState(false); // Start with simulation mode
   const { signOut } = useAuth();
-
-  // Save to localStorage whenever isLiveMode changes
-  useEffect(() => {
-    localStorage.setItem('dashboard-live-mode', JSON.stringify(isLiveMode));
-  }, [isLiveMode]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -43,26 +30,10 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
     setIsLiveMode(!isLiveMode);
   };
 
-  const handleTimeSlotClick = (date: Date) => {
-    setSelectedAppointmentTime(date);
-    setShowAppointmentForm(true);
-  };
-
-  const handleAppointmentFormClose = () => {
-    setShowAppointmentForm(false);
-    setSelectedAppointmentTime(null);
-  };
-
-  const handleAppointmentFormSave = () => {
-    setShowAppointmentForm(false);
-    setSelectedAppointmentTime(null);
-    // The form will handle the actual saving
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Header */}
-      <header className="bg-white shadow-md border-b border-gray-300">
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -106,7 +77,7 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
       </header>
 
       {/* Navigation Tabs */}
-      <nav className="bg-white border-b border-gray-300 shadow-sm">
+      <nav className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
             {[
@@ -139,12 +110,7 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
-              <CalendarView 
-                businessId={business.id} 
-                compact 
-                isSimulating={!isLiveMode}
-                onTimeSlotClick={handleTimeSlotClick}
-              />
+              <CalendarView businessId={business.id} compact isSimulating={!isLiveMode} />
             </div>
             <div className="space-y-8">
               <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
@@ -157,11 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         {activeTab === 'calendar' && (
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
             <div className="xl:col-span-3">
-              <CalendarView 
-                businessId={business.id} 
-                isSimulating={!isLiveMode}
-                onTimeSlotClick={handleTimeSlotClick}
-              />
+              <CalendarView businessId={business.id} isSimulating={!isLiveMode} />
             </div>
             <div>
               <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
@@ -173,17 +135,6 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         {activeTab === 'tasks' && <TasksList businessId={business.id} isSimulating={!isLiveMode} />}
         {activeTab === 'livefeed' && <LiveFeed businessId={business.id} isSimulating={!isLiveMode} />}
       </main>
-
-      {/* Appointment Form Modal */}
-      <AppointmentForm
-        businessId={business.id}
-        appointment={null}
-        isOpen={showAppointmentForm}
-        onClose={handleAppointmentFormClose}
-        onSave={handleAppointmentFormSave}
-        isSimulating={!isLiveMode}
-        initialAppointmentTime={selectedAppointmentTime ? dayjs(selectedAppointmentTime) : null}
-      />
     </div>
   );
 };

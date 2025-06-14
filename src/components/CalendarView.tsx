@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, User, Calendar, Plus } from 'lucide-react';
-import { addMinutes, isSameMinute, isSameHour, isSameDay, format, getDay, setHours, setMinutes, startOfDay } from 'date-fns';
+import { ChevronLeft, ChevronRight, Clock, User, Calendar } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 
 type Appointment = Database['public']['Tables']['appointments']['Row'];
@@ -9,10 +8,9 @@ interface CalendarProps {
   businessId: string;
   compact?: boolean;
   isSimulating?: boolean;
-  onTimeSlotClick?: (date: Date) => void;
 }
 
-const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, isSimulating, onTimeSlotClick }) => {
+const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, isSimulating = true }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -49,7 +47,7 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
   // Mock simulation data (existing logic)
   useEffect(() => {
     if (isSimulating) {
-      // Initialize with mock data - aligned to 30-minute intervals and working hours
+      // Initialize with mock data
       const mockAppointments: Appointment[] = [
         {
           id: '1',
@@ -58,7 +56,7 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
           client_phone: '(555) 123-4567',
           service: 'Haircut',
           status: 'confirmed',
-          appointment_time: setMinutes(setHours(new Date(), 9), 0).toISOString(), // 9:00 AM today
+          appointment_time: new Date().toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -69,7 +67,7 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
           client_phone: '(555) 987-6543',
           service: 'Color Treatment',
           status: 'pending',
-          appointment_time: setMinutes(setHours(new Date(), 14), 30).toISOString(), // 2:30 PM today
+          appointment_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -80,7 +78,7 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
           client_phone: '(555) 456-7890',
           service: 'Beard Trim',
           status: 'confirmed',
-          appointment_time: setMinutes(setHours(new Date(), 11), 0).toISOString(), // 11:00 AM today
+          appointment_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -91,7 +89,7 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
           client_phone: '(555) 321-0987',
           service: 'Styling',
           status: 'completed',
-          appointment_time: setMinutes(setHours(new Date(), 10), 30).toISOString(), // 10:30 AM today
+          appointment_time: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
@@ -107,15 +105,7 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
           client_phone: `(555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
           service: ['Haircut', 'Massage', 'Consultation', 'Treatment'][Math.floor(Math.random() * 4)],
           status: 'pending' as const,
-          // Generate random appointment time within working hours (8 AM - 4:30 PM, 30-minute intervals)
-          appointment_time: (() => {
-            const baseDate = new Date();
-            const workingHours = [8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15, 15.5, 16, 16.5];
-            const randomHour = workingHours[Math.floor(Math.random() * workingHours.length)];
-            const hours = Math.floor(randomHour);
-            const minutes = (randomHour % 1) * 60;
-            return setMinutes(setHours(baseDate, hours), minutes).toISOString();
-          })(),
+          appointment_time: new Date(Date.now() + Math.random() * 24 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
@@ -149,38 +139,6 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
     } catch (error) {
       console.error('Error fetching appointments:', error);
     }
-  };
-
-  // Check if a day is a working day (Monday-Friday)
-  const isWorkingDay = (date: Date): boolean => {
-    const dayOfWeek = getDay(date);
-    return dayOfWeek >= 1 && dayOfWeek <= 5; // Monday = 1, Friday = 5
-  };
-
-  // Check if a time slot is within working hours
-  const isWorkingHourSlot = (hour: number, minute: number): boolean => {
-    if (hour < 8 || hour >= 17) return false;
-    if (hour === 16 && minute > 30) return false; // Last slot is 4:30 PM
-    return minute === 0 || minute === 30; // Only 30-minute intervals
-  };
-
-  // Generate 30-minute time slots for working hours (8:00 AM - 5:00 PM)
-  const generateTimeSlots = () => {
-    const slots = [];
-    for (let hour = 8; hour <= 17; hour++) {
-      for (let minute = 0; minute < 60; minute += 30) {
-        // Don't include slots after 4:30 PM (last appointment start time)
-        if (hour === 17 || (hour === 16 && minute > 30)) break;
-        
-        slots.push({
-          hour,
-          minute,
-          time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-          isWorking: isWorkingHourSlot(hour, minute)
-        });
-      }
-    }
-    return slots;
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -246,46 +204,17 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
     });
   };
 
-  const getAppointmentsForTimeSlot = (day: Date, hour: number, minute: number) => {
-    return appointments.filter(apt => {
-      const aptDate = new Date(apt.appointment_time);
-      return isSameDay(aptDate, day) && 
-             aptDate.getHours() === hour && 
-             aptDate.getMinutes() === minute;
-    });
-  };
-
-  const handleTimeSlotClick = (day: Date, hour: number, minute: number) => {
-    if (!isWorkingDay(day) || !isWorkingHourSlot(hour, minute)) return;
-    
-    const slotDate = new Date(day);
-    slotDate.setHours(hour, minute, 0, 0);
-    
-    // Don't allow booking in the past
-    if (slotDate < new Date()) return;
-    
-    // Check if slot is already occupied
-    const existingAppointments = getAppointmentsForTimeSlot(day, hour, minute);
-    if (existingAppointments.length > 0) return;
-    
-    // Call the callback with the selected time
-    if (onTimeSlotClick) {
-      onTimeSlotClick(slotDate);
-    }
-  };
-
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const timeSlots = generateTimeSlots();
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       {/* Calendar Header */}
-      <div className="p-6 border-b border-gray-300">
+      <div className="p-6 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
@@ -359,30 +288,23 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
             <div className="grid grid-cols-7 gap-1">
               {getDaysInMonth(currentDate).map((day, index) => {
                 const dayAppointments = day ? getAppointmentsForDay(day) : [];
-                const dayDate = day ? new Date(currentDate.getFullYear(), currentDate.getMonth(), day) : null;
-                const isWeekend = dayDate ? !isWorkingDay(dayDate) : false;
                 
                 return (
                   <div
                     key={index}
-                    className={`min-h-[80px] p-2 border border-gray-200 rounded-lg transition-colors cursor-pointer ${
+                    className={`min-h-[80px] p-2 border border-gray-100 rounded-lg ${
                       day === null 
-                        ? 'bg-gray-100' 
-                        : isWeekend
-                        ? 'bg-gray-50'
+                        ? 'bg-gray-50' 
                         : day === new Date().getDate() && 
                           currentDate.getMonth() === new Date().getMonth() &&
                           currentDate.getFullYear() === new Date().getFullYear()
                         ? 'bg-blue-50 border-blue-200'
                         : 'bg-white hover:bg-gray-50'
-                    }`}
+                    } transition-colors cursor-pointer`}
                   >
                     {day && (
                       <>
-                        <div className={`font-medium mb-1 ${isWeekend ? 'text-gray-400' : 'text-gray-900'}`}>
-                          {day}
-                          {isWeekend && <span className="text-xs ml-1">(Weekend)</span>}
-                        </div>
+                        <div className="font-medium text-gray-900 mb-1">{day}</div>
                         {dayAppointments.slice(0, 2).map((apt, i) => (
                           <div key={i} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mb-1 truncate">
                             {formatAppointmentTime(apt.appointment_time)} - {apt.client_name}
@@ -405,94 +327,46 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
             {/* Week View */}
             <div className="grid grid-cols-8 gap-1">
               <div className="p-2"></div>
-              {getWeekDays().map((day, index) => {
-                const isWeekend = !isWorkingDay(day);
-                return (
-                  <div key={index} className={`p-2 text-center ${isWeekend ? 'bg-gray-100 rounded' : ''}`}>
-                    <div className={`text-sm font-medium ${isWeekend ? 'text-gray-400' : 'text-gray-900'}`}>
-                      {dayNames[day.getDay()]}
-                      {isWeekend && <div className="text-xs">Closed</div>}
-                    </div>
-                    <div className={`text-2xl font-bold mt-1 ${
-                      day.toDateString() === new Date().toDateString() 
-                        ? 'text-blue-600' 
-                        : isWeekend
-                        ? 'text-gray-400'
-                        : 'text-gray-600'
-                    }`}>
-                      {day.getDate()}
-                    </div>
+              {getWeekDays().map((day, index) => (
+                <div key={index} className="p-2 text-center">
+                  <div className="text-sm font-medium text-gray-900">{dayNames[day.getDay()]}</div>
+                  <div className={`text-2xl font-bold mt-1 ${
+                    day.toDateString() === new Date().toDateString() 
+                      ? 'text-blue-600' 
+                      : 'text-gray-600'
+                  }`}>
+                    {day.getDate()}
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
 
             {/* Time Slots */}
             <div className="space-y-1">
-              {timeSlots.map(slot => (
-                <div key={`${slot.hour}-${slot.minute}`} className="grid grid-cols-8 gap-1">
+              {Array.from({ length: 12 }, (_, i) => i + 8).map(hour => (
+                <div key={hour} className="grid grid-cols-8 gap-1">
                   <div className="p-2 text-sm text-gray-500 text-right">
-                    {slot.time}
+                    {hour}:00
                   </div>
                   {getWeekDays().map((day, dayIndex) => {
-                    const isWeekend = !isWorkingDay(day);
-                    const slotAppointments = getAppointmentsForTimeSlot(day, slot.hour, slot.minute);
-                    const isWorkingSlot = slot.isWorking && !isWeekend;
-                    const slotDate = new Date(day);
-                    slotDate.setHours(slot.hour, slot.minute, 0, 0);
-                    const isPast = slotDate < new Date();
-                    const isAvailable = isWorkingSlot && !isPast && slotAppointments.length === 0;
+                    const dayAppointments = appointments.filter(apt => {
+                      const aptDate = new Date(apt.appointment_time);
+                      return aptDate.toDateString() === day.toDateString() &&
+                             aptDate.getHours() === hour;
+                    });
 
                     return (
-                      <div 
-                        key={dayIndex} 
-                        onClick={() => isAvailable && handleTimeSlotClick(day, slot.hour, slot.minute)}
-                        className={`min-h-[40px] border border-gray-200 rounded transition-all duration-200 relative group ${
-                          isWeekend || !slot.isWorking || isPast
-                            ? 'bg-gray-100 cursor-not-allowed'
-                            : slotAppointments.length > 0
-                            ? 'bg-green-50 border-green-200 cursor-default'
-                            : 'hover:bg-blue-50 hover:border-blue-300 cursor-pointer hover:shadow-sm'
-                        }`}
-                      >
-                        {slotAppointments.slice(0, 1).map((apt, i) => (
+                      <div key={dayIndex} className="min-h-[40px] border border-gray-100 rounded hover:bg-blue-50 transition-colors cursor-pointer">
+                        {dayAppointments.slice(0, 1).map((apt, i) => (
                           <div key={i} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded m-1 truncate">
                             {apt.client_name}
                           </div>
                         ))}
-                        
-                        {/* Click to book indicator */}
-                        {isAvailable && (
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="bg-blue-500 text-white p-1 rounded-full shadow-lg">
-                              <Plus className="w-3 h-3" />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
                 </div>
               ))}
-            </div>
-
-            {/* Legend */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Legend:</h4>
-              <div className="flex flex-wrap gap-4 text-xs">
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-white border border-gray-200 rounded hover:bg-blue-50"></div>
-                  <span className="text-gray-600">Available - Click to book</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
-                  <span className="text-gray-600">Booked</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded"></div>
-                  <span className="text-gray-600">Unavailable</span>
-                </div>
-              </div>
             </div>
           </div>
         )}
