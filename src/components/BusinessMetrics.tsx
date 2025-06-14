@@ -195,14 +195,14 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
         menuData,
         appointmentsToday
       ] = await Promise.all([
-        // Revenue today
+        // Revenue today - changed from .single() to .maybeSingle()
         supabase
           .from('business_metrics')
           .select('metric_value, metric_change')
           .eq('business_id', businessId)
           .eq('metric_name', 'revenue')
           .eq('date', today)
-          .single(),
+          .maybeSingle(),
         
         // Revenue this week
         supabase
