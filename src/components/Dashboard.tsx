@@ -7,9 +7,11 @@ import TasksList from './TasksList';
 import VoiceAgentWidget from './VoiceAgentWidget';
 import LiveCallsWidget from './LiveCallsWidget';
 import LiveFeed from './LiveFeed';
+import AppointmentForm from './AppointmentForm';
 import { useAuth } from '../hooks/useAuth';
 import { Database } from '../lib/supabase';
 import { Activity, Calendar, Package, BarChart3, CheckSquare, LogOut, Rss } from 'lucide-react';
+import dayjs from 'dayjs';
 
 type Business = Database['public']['Tables']['businesses']['Row'];
 
@@ -24,6 +26,8 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
     const saved = localStorage.getItem('dashboard-live-mode');
     return saved ? JSON.parse(saved) : false;
   });
+  const [showAppointmentForm, setShowAppointmentForm] = useState(false);
+  const [selectedAppointmentTime, setSelectedAppointmentTime] = useState<Date | null>(null);
   const { signOut } = useAuth();
 
   // Save to localStorage whenever isLiveMode changes
@@ -37,6 +41,22 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
 
   const toggleDataMode = () => {
     setIsLiveMode(!isLiveMode);
+  };
+
+  const handleTimeSlotClick = (date: Date) => {
+    setSelectedAppointmentTime(date);
+    setShowAppointmentForm(true);
+  };
+
+  const handleAppointmentFormClose = () => {
+    setShowAppointmentForm(false);
+    setSelectedAppointmentTime(null);
+  };
+
+  const handleAppointmentFormSave = () => {
+    setShowAppointmentForm(false);
+    setSelectedAppointmentTime(null);
+    // The form will handle the actual saving
   };
 
   return (
@@ -119,7 +139,12 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
               <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
-              <CalendarView businessId={business.id} compact isSimulating={!isLiveMode} />
+              <CalendarView 
+                businessId={business.id} 
+                compact 
+                isSimulating={!isLiveMode}
+                onTimeSlotClick={handleTimeSlotClick}
+              />
             </div>
             <div className="space-y-8">
               <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
@@ -132,7 +157,11 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         {activeTab === 'calendar' && (
           <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
             <div className="xl:col-span-3">
-              <CalendarView businessId={business.id} isSimulating={!isLiveMode} />
+              <CalendarView 
+                businessId={business.id} 
+                isSimulating={!isLiveMode}
+                onTimeSlotClick={handleTimeSlotClick}
+              />
             </div>
             <div>
               <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
@@ -144,6 +173,17 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         {activeTab === 'tasks' && <TasksList businessId={business.id} isSimulating={!isLiveMode} />}
         {activeTab === 'livefeed' && <LiveFeed businessId={business.id} isSimulating={!isLiveMode} />}
       </main>
+
+      {/* Appointment Form Modal */}
+      <AppointmentForm
+        businessId={business.id}
+        appointment={null}
+        isOpen={showAppointmentForm}
+        onClose={handleAppointmentFormClose}
+        onSave={handleAppointmentFormSave}
+        isSimulating={!isLiveMode}
+        initialAppointmentTime={selectedAppointmentTime ? dayjs(selectedAppointmentTime) : null}
+      />
     </div>
   );
 };

@@ -16,6 +16,7 @@ interface AppointmentFormProps {
   onClose: () => void;
   onSave: () => void;
   isSimulating?: boolean;
+  initialAppointmentTime?: Dayjs | null;
 }
 
 const AppointmentForm: React.FC<AppointmentFormProps> = ({
@@ -24,7 +25,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   isOpen,
   onClose,
   onSave,
-  isSimulating = true
+  isSimulating = true,
+  initialAppointmentTime
 }) => {
   const [formData, setFormData] = useState({
     client_name: '',
@@ -37,7 +39,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const [error, setError] = useState('');
   const [suggestedTime, setSuggestedTime] = useState<Dayjs | null>(null);
 
-  // Populate form when editing an existing appointment
+  // Populate form when editing an existing appointment or when initial time is provided
   useEffect(() => {
     if (appointment) {
       setFormData({
@@ -53,13 +55,13 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         client_name: '',
         client_phone: '',
         service: '',
-        appointment_time: null,
+        appointment_time: initialAppointmentTime || null,
         status: 'pending'
       });
     }
     setError('');
     setSuggestedTime(null);
-  }, [appointment, isOpen]);
+  }, [appointment, isOpen, initialAppointmentTime]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

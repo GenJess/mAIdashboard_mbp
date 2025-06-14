@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, User, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, User, Calendar, Plus } from 'lucide-react';
 import { addMinutes, isSameMinute, isSameHour, isSameDay, format, getDay, setHours, setMinutes, startOfDay } from 'date-fns';
 import { supabase, Database } from '../lib/supabase';
 
@@ -9,9 +9,10 @@ interface CalendarProps {
   businessId: string;
   compact?: boolean;
   isSimulating?: boolean;
+  onTimeSlotClick?: (date: Date) => void;
 }
 
-const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, isSimulating }) => {
+const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, isSimulating, onTimeSlotClick }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -254,6 +255,25 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
     });
   };
 
+  const handleTimeSlotClick = (day: Date, hour: number, minute: number) => {
+    if (!isWorkingDay(day) || !isWorkingHourSlot(hour, minute)) return;
+    
+    const slotDate = new Date(day);
+    slotDate.setHours(hour, minute, 0, 0);
+    
+    // Don't allow booking in the past
+    if (slotDate < new Date()) return;
+    
+    // Check if slot is already occupied
+    const existingAppointments = getAppointmentsForTimeSlot(day, hour, minute);
+    if (existingAppointments.length > 0) return;
+    
+    // Call the callback with the selected time
+    if (onTimeSlotClick) {
+      onTimeSlotClick(slotDate);
+    }
+  };
+
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -418,14 +438,21 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
                     const isWeekend = !isWorkingDay(day);
                     const slotAppointments = getAppointmentsForTimeSlot(day, slot.hour, slot.minute);
                     const isWorkingSlot = slot.isWorking && !isWeekend;
+                    const slotDate = new Date(day);
+                    slotDate.setHours(slot.hour, slot.minute, 0, 0);
+                    const isPast = slotDate < new Date();
+                    const isAvailable = isWorkingSlot && !isPast && slotAppointments.length === 0;
 
                     return (
                       <div 
                         key={dayIndex} 
-                        className={`min-h-[40px] border border-gray-200 rounded transition-colors cursor-pointer ${
-                          isWeekend || !slot.isWorking
-                            ? 'bg-gray-100'
-                            : 'hover:bg-blue-50'
+                        onClick={() => isAvailable && handleTimeSlotClick(day, slot.hour, slot.minute)}
+                        className={`min-h-[40px] border border-gray-200 rounded transition-all duration-200 relative group ${
+                          isWeekend || !slot.isWorking || isPast
+                            ? 'bg-gray-100 cursor-not-allowed'
+                            : slotAppointments.length > 0
+                            ? 'bg-green-50 border-green-200 cursor-default'
+                            : 'hover:bg-blue-50 hover:border-blue-300 cursor-pointer hover:shadow-sm'
                         }`}
                       >
                         {slotAppointments.slice(0, 1).map((apt, i) => (
@@ -433,11 +460,39 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
                             {apt.client_name}
                           </div>
                         ))}
+                        
+                        {/* Click to book indicator */}
+                        {isAvailable && (
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="bg-blue-500 text-white p-1 rounded-full shadow-lg">
+                              <Plus className="w-3 h-3" />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               ))}
+            </div>
+
+            {/* Legend */}
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Legend:</h4>
+              <div className="flex flex-wrap gap-4 text-xs">
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-white border border-gray-200 rounded hover:bg-blue-50"></div>
+                  <span className="text-gray-600">Available - Click to book</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
+                  <span className="text-gray-600">Booked</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded"></div>
+                  <span className="text-gray-600">Unavailable</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
