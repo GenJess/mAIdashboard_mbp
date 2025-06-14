@@ -15,13 +15,14 @@ type ActivityItem = {
 interface LiveFeedProps {
   businessId: string;
   isSimulating?: boolean;
+  dashboardMode?: boolean;
 }
 
-const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating }) => {
+const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboardMode = false }) => {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [isConnected, setIsConnected] = useState(false);
-  const [displayLimit, setDisplayLimit] = useState(20);
+  const [displayLimit, setDisplayLimit] = useState(dashboardMode ? 8 : 20);
 
   // Real-time data subscription
   useEffect(() => {
@@ -159,7 +160,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating }) => {
       setIsConnected(true);
       generateMockActivities();
     }
-  }, [businessId, isSimulating]);
+  }, [businessId, isSimulating, dashboardMode]);
 
   const fetchInitialActivities = async () => {
     try {
@@ -376,7 +377,9 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating }) => {
     const interval = setInterval(() => {
       const coreTypes: ActivityItem['type'][] = ['appointment', 'call', 'menu'];
       const operationalTypes: ActivityItem['type'][] = ['task', 'inventory', 'metric'];
-      const allTypes = [...coreTypes, ...operationalTypes];
+      
+      // In dashboard mode, focus on customer activities
+      const allTypes = dashboardMode ? coreTypes : [...coreTypes, ...operationalTypes];
       const actions: ActivityItem['action'][] = ['created', 'updated', 'completed'];
       
       const randomType = allTypes[Math.floor(Math.random() * allTypes.length)];
@@ -479,13 +482,26 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating }) => {
     return `${Math.floor(diffInMinutes / 1440)}d ago`;
   };
 
-  const filteredActivities = filter === 'all' 
-    ? activities 
-    : filter === 'core'
-    ? activities.filter(activity => isCoreBusinessActivity(activity.type))
-    : filter === 'operational'
-    ? activities.filter(activity => !isCoreBusinessActivity(activity.type))
-    : activities.filter(activity => activity.type === filter);
+  // Filter activities based on dashboard mode and filter selection
+  const filteredActivities = (() => {
+    let filtered = activities;
+    
+    // In dashboard mode, only show customer-focused activities
+    if (dashboardMode) {
+      filtered = activities.filter(activity => isCoreBusinessActivity(activity.type));
+    } else {
+      // Apply regular filters for full feed mode
+      filtered = filter === 'all' 
+        ? activities 
+        : filter === 'core'
+        ? activities.filter(activity => isCoreBusinessActivity(activity.type))
+        : filter === 'operational'
+        ? activities.filter(activity => !isCoreBusinessActivity(activity.type))
+        : activities.filter(activity => activity.type === filter);
+    }
+    
+    return filtered;
+  })();
 
   const displayedActivities = filteredActivities.slice(0, displayLimit);
   const hasMoreActivities = filteredActivities.length > displayLimit;
@@ -502,6 +518,105 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating }) => {
     { value: 'metric', label: 'Metrics', icon: TrendingUp },
   ];
 
+  if (dashboardMode) {
+    // Dashboard mode - compact layout
+    return (
+      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+        <div className="p-6 border-b border-gray-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+                <Activity className="w-5 h-5 text-blue-500" />
+                <span>Recent Activity</span>
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                {!isSimulating && (
+                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                    Live Data
+                  </span>
+                )}
+              </h2>
+              <p className="text-gray-600 text-sm mt-1">
+                Customer-focused activity updates
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-h-[400px] overflow-y-auto">
+          {displayedActivities.length > 0 ? (
+            <div className="divide-y divide-gray-300">
+              {displayedActivities.map((activity) => {
+                const IconComponent = getActivityIcon(activity.type);
+                const colorClasses = getActivityColor(activity.type, activity.action);
+                const containerStyle = getActivityContainerStyle(activity.type, activity.action);
+                
+                return (
+                  <div 
+                    key={activity.id} 
+                    className={`p-4 transition-all duration-200 ${containerStyle.container} ${containerStyle.hover}`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="relative">
+                        <div className={`p-2 rounded-lg ${colorClasses}`}>
+                          <IconComponent className="w-4 h-4" />
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="text-sm font-medium text-gray-900 truncate">
+                            {activity.title}
+                          </h3>
+                          <div className="flex items-center space-x-2 text-xs text-gray-500">
+                            <Clock className="w-3 h-3" />
+                            <span>{formatTimeAgo(activity.timestamp)}</span>
+                          </div>
+                        </div>
+                        
+                        <p className="text-sm text-gray-600 mb-2">
+                          {activity.description}
+                        </p>
+                        
+                        <div className="flex items-center space-x-4 text-xs">
+                          <span className={`px-2 py-1 rounded-full font-medium ${colorClasses}`}>
+                            {activity.action.charAt(0).toUpperCase() + activity.action.slice(1)}
+                          </span>
+                          <span className="text-gray-500 capitalize">
+                            {activity.type.replace('_', ' ')}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Activity className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium mb-2">No recent activity</p>
+              <p className="text-sm">
+                Customer activities will appear here
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* View All Button */}
+        <div className="p-4 border-t border-gray-300 bg-gray-50">
+          <button
+            onClick={() => window.location.hash = '#livefeed'}
+            className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+          >
+            <span>View All Activity</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Full feed mode - existing layout
   return (
     <div className="space-y-6">
       {/* Header */}

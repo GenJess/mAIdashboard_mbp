@@ -17,9 +17,10 @@ interface LiveCall {
 interface LiveCallsWidgetProps {
   businessId: string;
   isSimulating?: boolean;
+  dashboardMode?: boolean;
 }
 
-const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulating }) => {
+const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulating, dashboardMode = false }) => {
   const [activeCalls, setActiveCalls] = useState<LiveCall[]>([]);
   const [callHistory, setCallHistory] = useState<Array<{ caller: string; time: Date; duration: number }>>([]);
   const [isAgentActive, setIsAgentActive] = useState(false);
@@ -232,7 +233,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
         </div>
       </div>
 
-      <div className="max-h-[400px] overflow-y-auto">
+      <div className={`${dashboardMode ? 'max-h-[400px]' : 'max-h-[400px]'} overflow-y-auto`}>
         {/* Active Calls */}
         {displayCalls.length > 0 && (
           <div className="p-6 border-b border-gray-300">

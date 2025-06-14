@@ -120,43 +120,12 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
             {/* Full Width Business Metrics */}
             <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
             
-            {/* Quick Actions and Task List - Half Width Each */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Quick Actions */}
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900">Quick Actions</h3>
-                </div>
-                <div className="p-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <button className="p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-blue-900 font-medium transition-colors">
-                      Generate Report
-                    </button>
-                    <button className="p-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg text-green-900 font-medium transition-colors">
-                      View Analytics
-                    </button>
-                    <button className="p-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-900 font-medium transition-colors">
-                      Export Data
-                    </button>
-                    <button className="p-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg text-orange-900 font-medium transition-colors">
-                      Manage Inventory
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Task List */}
-              <TasksList businessId={business.id} compact={false} isSimulating={!isLiveMode} />
+            {/* Three Equal Columns: Live Calls, Appointments, Recent Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
+              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
+              <LiveFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
             </div>
-            
-            {/* Live Calls and Appointments - Half Width Each */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
-              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
-            </div>
-            
-            {/* Full Width Calendar */}
-            <CalendarView businessId={business.id} compact isSimulating={!isLiveMode} />
           </div>
         )}
 

@@ -8,9 +8,10 @@ type Appointment = Database['public']['Tables']['appointments']['Row'];
 interface AppointmentsFeedProps {
   businessId: string;
   isSimulating?: boolean;
+  dashboardMode?: boolean;
 }
 
-const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimulating }) => {
+const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimulating, dashboardMode = false }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -259,16 +260,18 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
             </div>
           </div>
           
-          <button
-            onClick={handleNewAppointment}
-            className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Book New Appointment</span>
-          </button>
+          {!dashboardMode && (
+            <button
+              onClick={handleNewAppointment}
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Book New Appointment</span>
+            </button>
+          )}
         </div>
 
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className={`${dashboardMode ? 'max-h-[400px]' : 'max-h-[400px]'} overflow-y-auto`}>
           <div className="space-y-1 p-4">
             {appointments.map((appointment) => {
               const isLive = isLiveAppointment(appointment.appointment_time);
@@ -310,13 +313,15 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditAppointment(appointment)}
-                        className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit appointment"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                      {!dashboardMode && (
+                        <button
+                          onClick={() => handleEditAppointment(appointment)}
+                          className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit appointment"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
                       <div className="flex items-center space-x-2">
                         {getStatusIcon(appointment.status)}
                         <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(appointment.status)}`}>
@@ -343,14 +348,16 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
       </div>
 
       {/* Appointment Form Modal */}
-      <AppointmentForm
-        businessId={businessId}
-        appointment={editingAppointment}
-        isOpen={showForm}
-        onClose={handleFormClose}
-        onSave={handleFormSave}
-        isSimulating={isSimulating}
-      />
+      {!dashboardMode && (
+        <AppointmentForm
+          businessId={businessId}
+          appointment={editingAppointment}
+          isOpen={showForm}
+          onClose={handleFormClose}
+          onSave={handleFormSave}
+          isSimulating={isSimulating}
+        />
+      )}
     </>
   );
 };
