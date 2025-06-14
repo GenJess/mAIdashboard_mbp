@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CalendarView from './CalendarView';
 import AppointmentsFeed from './AppointmentsFeed';
 import MenuInventory from './MenuInventory';
@@ -19,8 +19,17 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ business }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isLiveMode, setIsLiveMode] = useState(false); // Start with simulation mode
+  const [isLiveMode, setIsLiveMode] = useState(() => {
+    // Load from localStorage on initial render
+    const saved = localStorage.getItem('dashboard-live-mode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const { signOut } = useAuth();
+
+  // Save to localStorage whenever isLiveMode changes
+  useEffect(() => {
+    localStorage.setItem('dashboard-live-mode', JSON.stringify(isLiveMode));
+  }, [isLiveMode]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -107,16 +116,21 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-8">
+          <div className="space-y-8">
+            {/* Top Row - Half Width Components */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
-              <CalendarView businessId={business.id} compact isSimulating={!isLiveMode} />
+              <div className="space-y-8">
+                <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
+                <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
+              </div>
             </div>
-            <div className="space-y-8">
-              <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
-              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
-              <TasksList businessId={business.id} compact isSimulating={!isLiveMode} />
-            </div>
+            
+            {/* Second Row - Tasks */}
+            <TasksList businessId={business.id} compact isSimulating={!isLiveMode} />
+            
+            {/* Bottom Row - Full Width Calendar */}
+            <CalendarView businessId={business.id} compact isSimulating={!isLiveMode} />
           </div>
         )}
 

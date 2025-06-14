@@ -202,7 +202,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
     try {
       const today = new Date().toISOString().split('T')[0];
       
-      // Check if revenue metric exists for today
+      // Check if revenue metric exists for today - using maybeSingle() to handle no results
       const { data: existingMetric, error: fetchError } = await supabase
         .from('business_metrics')
         .select('*')
@@ -220,7 +220,8 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
         // Update existing revenue metric
         const currentRevenue = parseFloat(existingMetric.metric_value);
         const newRevenue = currentRevenue + saleAmount;
-        const change = ((newRevenue - currentRevenue) / currentRevenue) * 100;
+        // Fix division by zero issue
+        const change = currentRevenue > 0 ? ((newRevenue - currentRevenue) / currentRevenue) * 100 : 0;
 
         const { error: updateError } = await supabase
           .from('business_metrics')
