@@ -96,14 +96,6 @@ const VoiceAgentWidget: React.FC = () => {
         {/* Using a data URL for a simple notification beep */}
         <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT" type="audio/wav" />
       </audio>
-
-      {/* Voice Agent Embed Placeholder */}
-      <div className="hidden">
-        {/* This is where the actual Eleven Labs widget would be embedded */}
-        <div dangerouslySetInnerHTML={{
-          __html: '<elevenlabs-convai agent-id="agent_01jxn3j620ey1a72c9pmr0nbg6"></elevenlabs-convai>'
-        }} />
-      </div>
     </div>
   );
 };
