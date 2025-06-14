@@ -19,7 +19,7 @@ interface LiveCallsWidgetProps {
   isSimulating?: boolean;
 }
 
-const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulating = true }) => {
+const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulating }) => {
   const [activeCalls, setActiveCalls] = useState<LiveCall[]>([]);
   const [callHistory, setCallHistory] = useState<Array<{ caller: string; time: Date; duration: number }>>([]);
   const [isAgentActive, setIsAgentActive] = useState(false);
@@ -198,8 +198,8 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
     : (dbCalls.length > 0 ? Math.round(dbCalls.reduce((acc, call) => acc + (call.duration || 0), 0) / dbCalls.length) : 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-6 border-b border-gray-200">
+    <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+      <div className="p-6 border-b border-gray-300">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
@@ -235,7 +235,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
       <div className="max-h-[400px] overflow-y-auto">
         {/* Active Calls */}
         {displayCalls.length > 0 && (
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-6 border-b border-gray-300">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
               <PhoneCall className="w-4 h-4 text-green-500" />
               <span>Active Call</span>
@@ -304,9 +304,9 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
           {displayHistory.length > 0 ? (
             <div className="space-y-3">
               {displayHistory.map((call, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-100 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
                       <User className="w-4 h-4 text-gray-600" />
                     </div>
                     <div>
@@ -330,7 +330,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
         </div>
 
         {/* Call Statistics */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="p-6 border-t border-gray-300 bg-gray-100">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-2xl font-bold text-blue-600">{totalCalls}</div>

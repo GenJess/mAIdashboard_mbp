@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Clock, User, Calendar, Package, CheckSquare, Phone, TrendingUp, ArrowRight, Filter, Star, Zap } from 'lucide-react';
+import { Activity, Clock, User, Calendar, Package, CheckSquare, Phone, TrendingUp, ArrowRight, Filter, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 
 type ActivityItem = {
@@ -17,15 +17,15 @@ interface LiveFeedProps {
   isSimulating?: boolean;
 }
 
-const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false }) => {
+const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating }) => {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [isConnected, setIsConnected] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(20);
 
   // Real-time data subscription
   useEffect(() => {
     if (!isSimulating) {
-      setIsConnected(true);
       fetchInitialActivities();
       
       // Set up real-time subscriptions for all tables
@@ -41,7 +41,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               table: 'appointments',
               filter: `business_id=eq.${businessId}`,
             },
-            (payload) => handleRealtimeUpdate('appointment', payload)
+            (payload) => {
+              console.log('Real-time appointment update:', payload);
+              setIsConnected(true); // Set connected when we receive data
+              handleRealtimeUpdate('appointment', payload);
+            }
           ),
         
         // Tasks
@@ -55,7 +59,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               table: 'tasks',
               filter: `business_id=eq.${businessId}`,
             },
-            (payload) => handleRealtimeUpdate('task', payload)
+            (payload) => {
+              console.log('Real-time task update:', payload);
+              setIsConnected(true);
+              handleRealtimeUpdate('task', payload);
+            }
           ),
         
         // Inventory
@@ -69,7 +77,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               table: 'inventory_items',
               filter: `business_id=eq.${businessId}`,
             },
-            (payload) => handleRealtimeUpdate('inventory', payload)
+            (payload) => {
+              console.log('Real-time inventory update:', payload);
+              setIsConnected(true);
+              handleRealtimeUpdate('inventory', payload);
+            }
           ),
         
         // Menu Items
@@ -83,7 +95,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               table: 'menu_items',
               filter: `business_id=eq.${businessId}`,
             },
-            (payload) => handleRealtimeUpdate('menu', payload)
+            (payload) => {
+              console.log('Real-time menu update:', payload);
+              setIsConnected(true);
+              handleRealtimeUpdate('menu', payload);
+            }
           ),
         
         // Calls
@@ -97,7 +113,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               table: 'calls',
               filter: `business_id=eq.${businessId}`,
             },
-            (payload) => handleRealtimeUpdate('call', payload)
+            (payload) => {
+              console.log('Real-time call update:', payload);
+              setIsConnected(true);
+              handleRealtimeUpdate('call', payload);
+            }
           ),
         
         // Business Metrics
@@ -111,12 +131,24 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               table: 'business_metrics',
               filter: `business_id=eq.${businessId}`,
             },
-            (payload) => handleRealtimeUpdate('metric', payload)
+            (payload) => {
+              console.log('Real-time metrics update:', payload);
+              setIsConnected(true);
+              handleRealtimeUpdate('metric', payload);
+            }
           ),
       ];
 
-      // Subscribe to all channels
-      channels.forEach(channel => channel.subscribe());
+      // Subscribe to all channels and monitor connection status
+      channels.forEach(channel => {
+        channel.subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            setIsConnected(true);
+          } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+            setIsConnected(false);
+          }
+        });
+      });
 
       return () => {
         channels.forEach(channel => supabase.removeChannel(channel));
@@ -124,6 +156,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
       };
     } else {
       // Simulation mode - generate mock activities
+      setIsConnected(true);
       generateMockActivities();
     }
   }, [businessId, isSimulating]);
@@ -222,7 +255,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
 
       // Sort by timestamp and set
       initialActivities.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      setActivities(initialActivities.slice(0, 20));
+      setActivities(initialActivities.slice(0, 50)); // Keep last 50 activities
     } catch (error) {
       console.error('Error fetching initial activities:', error);
     }
@@ -376,7 +409,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
         timestamp: new Date(),
       };
 
-      setActivities(prev => [newActivity, ...prev.slice(0, 19)]);
+      setActivities(prev => [newActivity, ...prev.slice(0, 49)]); // Keep last 50 activities
     }, 8000);
 
     return () => clearInterval(interval);
@@ -420,17 +453,17 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
     const isCore = isCoreBusinessActivity(type);
     
     if (isCore) {
-      // Core business activities get prominent styling
+      // Core business activities get prominent styling with thicker border
       return {
-        container: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 shadow-sm',
-        hover: 'hover:from-blue-100 hover:to-indigo-100 hover:shadow-md',
+        container: 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-8 border-blue-600 shadow-md',
+        hover: 'hover:from-blue-100 hover:to-indigo-100 hover:shadow-lg',
         badge: 'bg-blue-500 text-white'
       };
     } else {
       // Operational activities get subtle styling
       return {
-        container: 'bg-gray-50 border-l-4 border-gray-300',
-        hover: 'hover:bg-gray-100',
+        container: 'bg-gray-100 border-l-4 border-gray-400',
+        hover: 'hover:bg-gray-200',
         badge: 'bg-gray-400 text-white'
       };
     }
@@ -454,6 +487,9 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
     ? activities.filter(activity => !isCoreBusinessActivity(activity.type))
     : activities.filter(activity => activity.type === filter);
 
+  const displayedActivities = filteredActivities.slice(0, displayLimit);
+  const hasMoreActivities = filteredActivities.length > displayLimit;
+
   const filterOptions = [
     { value: 'all', label: 'All Activities', icon: Activity },
     { value: 'core', label: 'Core Business', icon: Star },
@@ -469,14 +505,14 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+        <div className="p-6 border-b border-gray-300">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
                 <Activity className="w-5 h-5 text-blue-500" />
                 <span>Live Activity Feed</span>
-                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
+                <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                 {!isSimulating && (
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                     Live Data
@@ -506,7 +542,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
         </div>
 
         {/* Connection Status */}
-        <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="px-6 py-3 bg-gray-100 border-b border-gray-300">
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -519,28 +555,28 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
               {/* Activity Type Legend */}
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-1">
-                  <Star className="w-3 h-3 text-blue-500" />
+                  <div className="w-3 h-1 bg-blue-600 rounded"></div>
                   <span className="text-xs text-gray-500">Core Business</span>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <CheckSquare className="w-3 h-3 text-gray-400" />
+                  <div className="w-3 h-1 bg-gray-400 rounded"></div>
                   <span className="text-xs text-gray-500">Operational</span>
                 </div>
               </div>
             </div>
             <span className="text-gray-500">
-              {filteredActivities.length} activities
+              {displayedActivities.length} of {filteredActivities.length} activities
             </span>
           </div>
         </div>
       </div>
 
       {/* Activity Feed */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
         <div className="max-h-[600px] overflow-y-auto">
-          {filteredActivities.length > 0 ? (
-            <div className="divide-y divide-gray-200">
-              {filteredActivities.map((activity) => {
+          {displayedActivities.length > 0 ? (
+            <div className="divide-y divide-gray-300">
+              {displayedActivities.map((activity) => {
                 const IconComponent = getActivityIcon(activity.type);
                 const colorClasses = getActivityColor(activity.type, activity.action);
                 const containerStyle = getActivityContainerStyle(activity.type, activity.action);
@@ -556,11 +592,6 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
                         <div className={`p-2 rounded-lg ${colorClasses}`}>
                           <IconComponent className="w-4 h-4" />
                         </div>
-                        {isCore && (
-                          <div className="absolute -top-1 -right-1">
-                            <Zap className="w-3 h-3 text-yellow-500 fill-current" />
-                          </div>
-                        )}
                       </div>
                       
                       <div className="flex-1 min-w-0">
@@ -569,11 +600,6 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
                             <h3 className="text-sm font-medium text-gray-900 truncate">
                               {activity.title}
                             </h3>
-                            {isCore && (
-                              <span className="px-2 py-1 text-xs font-bold bg-blue-500 text-white rounded-full">
-                                CORE
-                              </span>
-                            )}
                           </div>
                           <div className="flex items-center space-x-2 text-xs text-gray-500">
                             <Clock className="w-3 h-3" />
@@ -617,6 +643,19 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating = false })
             </div>
           )}
         </div>
+
+        {/* Load More Button */}
+        {hasMoreActivities && (
+          <div className="p-4 border-t border-gray-300 bg-gray-50">
+            <button
+              onClick={() => setDisplayLimit(prev => prev + 20)}
+              className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+            >
+              <ChevronDown className="w-4 h-4" />
+              <span>Load More Activities ({filteredActivities.length - displayLimit} remaining)</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

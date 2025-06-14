@@ -10,7 +10,7 @@ interface AppointmentsFeedProps {
   isSimulating?: boolean;
 }
 
-const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimulating = true }) => {
+const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimulating }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -239,8 +239,8 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-6 border-b border-gray-200">
+      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+        <div className="p-6 border-b border-gray-300">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
@@ -279,7 +279,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                   className={`p-4 rounded-lg border transition-all duration-300 ${
                     isLive 
                       ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-300' 
-                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                      : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
                   }`}
                 >
                   <div className="flex items-start justify-between">

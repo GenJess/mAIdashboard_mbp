@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CalendarView from './CalendarView';
 import AppointmentsFeed from './AppointmentsFeed';
 import MenuInventory from './MenuInventory';
@@ -19,8 +19,17 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ business }) => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [isLiveMode, setIsLiveMode] = useState(false); // Start with simulation mode
+  // Use localStorage to persist the data mode selection
+  const [isLiveMode, setIsLiveMode] = useState(() => {
+    const saved = localStorage.getItem('dashboard-live-mode');
+    return saved ? JSON.parse(saved) : false;
+  });
   const { signOut } = useAuth();
+
+  // Save to localStorage whenever isLiveMode changes
+  useEffect(() => {
+    localStorage.setItem('dashboard-live-mode', JSON.stringify(isLiveMode));
+  }, [isLiveMode]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -31,9 +40,9 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="bg-white shadow-md border-b border-gray-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
@@ -77,7 +86,7 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
       </header>
 
       {/* Navigation Tabs */}
-      <nav className="bg-white border-b border-gray-200">
+      <nav className="bg-white border-b border-gray-300 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
             {[

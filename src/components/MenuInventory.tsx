@@ -10,7 +10,7 @@ interface MenuInventoryProps {
   isSimulating?: boolean;
 }
 
-const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating = true }) => {
+const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating }) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [recentSales, setRecentSales] = useState<Array<{ item: string; quantity: number; timestamp: Date }>>([]);
@@ -209,7 +209,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
         .eq('business_id', businessId)
         .eq('metric_name', 'revenue')
         .eq('date', today)
-        .single();
+        .maybeSingle();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
         console.error('Error fetching revenue metric:', fetchError);
@@ -357,7 +357,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
     <div className="space-y-8">
       {/* Low Stock Alert */}
       {getLowStockItems().length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+        <div className="bg-red-50 border border-red-300 rounded-xl p-6">
           <div className="flex items-center space-x-2 mb-4">
             <AlertTriangle className="w-5 h-5 text-red-500" />
             <h3 className="text-lg font-semibold text-red-900">Low Stock Alert</h3>
@@ -369,7 +369,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {getLowStockItems().map(item => (
-              <div key={item.id} className="bg-white rounded-lg p-4 border border-red-200">
+              <div key={item.id} className="bg-white rounded-lg p-4 border border-red-300">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-red-900">{item.name}</h4>
                   <TrendingDown className="w-4 h-4 text-red-500" />
@@ -392,8 +392,8 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Menu Items */}
         <div className="xl:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+            <div className="p-6 border-b border-gray-300">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
                 <ShoppingCart className="w-5 h-5 text-blue-500" />
                 <span>Menu Items</span>
@@ -409,7 +409,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {menuItems.map(item => (
-                  <div key={item.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div key={item.id} className="bg-gray-100 rounded-lg p-4 border border-gray-300">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="font-semibold text-gray-900">{item.name}</h3>
@@ -445,8 +445,8 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
           </div>
 
           {/* Recent Sales */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+            <div className="p-6 border-b border-gray-300">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 <TrendingUp className="w-5 h-5 text-green-500" />
                 <span>Recent Sales</span>
@@ -477,8 +477,8 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
 
         {/* Inventory */}
         <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
+          <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
+            <div className="p-6 border-b border-gray-300">
               <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
                 <Package className="w-5 h-5 text-blue-500" />
                 <span>Inventory</span>
@@ -496,8 +496,8 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
                 {inventory.map(item => (
                   <div key={item.id} className={`p-4 rounded-lg border ${
                     item.quantity <= item.low_stock_threshold 
-                      ? 'bg-red-50 border-red-200' 
-                      : 'bg-gray-50 border-gray-200'
+                      ? 'bg-red-50 border-red-300' 
+                      : 'bg-gray-100 border-gray-300'
                   }`}>
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-medium text-gray-900">{item.name}</h3>

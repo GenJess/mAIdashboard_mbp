@@ -10,7 +10,7 @@ interface CalendarProps {
   isSimulating?: boolean;
 }
 
-const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, isSimulating = true }) => {
+const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, isSimulating }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<'month' | 'week'>('month');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -212,9 +212,9 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
       {/* Calendar Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-gray-300">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
@@ -292,9 +292,9 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
                 return (
                   <div
                     key={index}
-                    className={`min-h-[80px] p-2 border border-gray-100 rounded-lg ${
+                    className={`min-h-[80px] p-2 border border-gray-200 rounded-lg ${
                       day === null 
-                        ? 'bg-gray-50' 
+                        ? 'bg-gray-100' 
                         : day === new Date().getDate() && 
                           currentDate.getMonth() === new Date().getMonth() &&
                           currentDate.getFullYear() === new Date().getFullYear()
@@ -356,7 +356,7 @@ const CalendarView: React.FC<CalendarProps> = ({ businessId, compact = false, is
                     });
 
                     return (
-                      <div key={dayIndex} className="min-h-[40px] border border-gray-100 rounded hover:bg-blue-50 transition-colors cursor-pointer">
+                      <div key={dayIndex} className="min-h-[40px] border border-gray-200 rounded hover:bg-blue-50 transition-colors cursor-pointer">
                         {dayAppointments.slice(0, 1).map((apt, i) => (
                           <div key={i} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded m-1 truncate">
                             {apt.client_name}

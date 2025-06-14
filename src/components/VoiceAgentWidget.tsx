@@ -1,13 +1,31 @@
-import React, { useState } from 'react';
-import { Mic, MicOff, Volume2, Zap } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Mic, MicOff, Volume2, VolumeX, Zap } from 'lucide-react';
 
 const VoiceAgentWidget: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
+  const [isMuted, setIsMuted] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const toggleListening = () => {
     setIsListening(!isListening);
   };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+    
+    // Play notification sound when unmuting
+    if (isMuted && audioRef.current) {
+      audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+    }
+  };
+
+  // Play notification sound when voice agent becomes active
+  useEffect(() => {
+    if (isListening && !isMuted && audioRef.current) {
+      audioRef.current.play().catch(e => console.log('Audio play failed:', e));
+    }
+  }, [isListening, isMuted]);
 
   return (
     <div className="flex items-center space-x-4">
@@ -51,18 +69,33 @@ const VoiceAgentWidget: React.FC = () => {
       {/* Quick Actions */}
       <div className="hidden md:flex items-center space-x-2">
         <button
-          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          title="Voice Settings"
+          onClick={toggleMute}
+          className={`p-2 rounded-lg transition-colors ${
+            isMuted 
+              ? 'text-red-500 hover:text-red-600 hover:bg-red-50' 
+              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+          }`}
+          title={isMuted ? 'Unmute notifications' : 'Mute notifications'}
         >
-          <Volume2 className="w-4 h-4" />
+          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
         </button>
         <button
           className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          title="AI Suggestions"
+          title="AI Suggestions - Get intelligent recommendations for your business"
         >
           <Zap className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Audio element for notification sounds */}
+      <audio
+        ref={audioRef}
+        preload="auto"
+        className="hidden"
+      >
+        {/* Using a data URL for a simple notification beep */}
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT" type="audio/wav" />
+      </audio>
 
       {/* Voice Agent Embed Placeholder */}
       <div className="hidden">
