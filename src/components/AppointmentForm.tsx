@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, User, Phone, Briefcase, Clock, Save, AlertCircle } from 'lucide-react';
+import { addMinutes, isBefore, isAfter, isSameMinute, isSameHour, isSameDay, format, startOfDay, setHours, setMinutes, getDay, isValid, parseISO } from 'date-fns';
 import { supabase, Database } from '../lib/supabase';
 
 type Appointment = Database['public']['Tables']['appointments']['Row'];
@@ -30,6 +31,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestedTime, setSuggestedTime] = useState<string>('');
 
   // Populate form when editing an existing appointment
   useEffect(() => {
@@ -52,6 +54,7 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       });
     }
     setError('');
+    setSuggestedTime('');
   }, [appointment, isOpen]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -62,7 +65,110 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }));
   };
 
-  const validateForm = () => {
+  // Check if a time is within working hours (Monday-Friday, 8 AM - 5 PM, 30-minute intervals)
+  const isWorkingHours = (date: Date): boolean => {
+    if (!isValid(date)) return false;
+    
+    const dayOfWeek = getDay(date); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    // Check if it's a weekday (Monday-Friday)
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      return false;
+    }
+    
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    
+    // Check if time is between 8 AM and 5 PM
+    if (hours < 8 || hours >= 17) {
+      return false;
+    }
+    
+    // Check if minutes are on 30-minute intervals (0 or 30)
+    if (minutes !== 0 && minutes !== 30) {
+      return false;
+    }
+    
+    // Last valid start time for 30-minute appointment is 4:30 PM
+    if (hours === 16 && minutes === 30) {
+      return true;
+    }
+    
+    return hours < 16 || (hours === 16 && minutes === 0);
+  };
+
+  // Round time up to next 30-minute interval
+  const roundToNext30Minutes = (date: Date): Date => {
+    const minutes = date.getMinutes();
+    const roundedMinutes = minutes <= 30 ? 30 : 60;
+    
+    if (roundedMinutes === 60) {
+      return setMinutes(addMinutes(date, 60 - minutes), 0);
+    } else {
+      return setMinutes(date, roundedMinutes);
+    }
+  };
+
+  // Find next available 30-minute slot
+  const findNextAvailableSlot = async (startTime: Date): Promise<Date> => {
+    let currentSlot = new Date(startTime);
+    const now = new Date();
+    
+    // Start from at least 30 minutes from now or the requested time, whichever is later
+    const minStartTime = addMinutes(now, 30);
+    if (isBefore(currentSlot, minStartTime)) {
+      currentSlot = minStartTime;
+    }
+    
+    // Round up to next 30-minute interval
+    currentSlot = roundToNext30Minutes(currentSlot);
+    
+    // Look for available slot within next 30 days
+    const maxDate = addMinutes(now, 30 * 24 * 60); // 30 days from now
+    
+    while (isBefore(currentSlot, maxDate)) {
+      // Check if slot is within working hours
+      if (isWorkingHours(currentSlot)) {
+        // Check for conflicts with existing appointments
+        if (!isSimulating) {
+          try {
+            const slotEnd = addMinutes(currentSlot, 30);
+            
+            const { data: conflictingAppointments, error } = await supabase
+              .from('appointments')
+              .select('appointment_time')
+              .eq('business_id', businessId)
+              .gte('appointment_time', currentSlot.toISOString())
+              .lt('appointment_time', slotEnd.toISOString());
+            
+            if (error) {
+              console.error('Error checking for conflicts:', error);
+              return currentSlot; // Return current slot if we can't check
+            }
+            
+            // If no conflicts found, this slot is available
+            if (!conflictingAppointments || conflictingAppointments.length === 0) {
+              return currentSlot;
+            }
+          } catch (error) {
+            console.error('Error checking availability:', error);
+            return currentSlot;
+          }
+        } else {
+          // In simulation mode, just return the first valid working hours slot
+          return currentSlot;
+        }
+      }
+      
+      // Move to next 30-minute slot
+      currentSlot = addMinutes(currentSlot, 30);
+    }
+    
+    // If no slot found, return the original time (will be caught by validation)
+    return startTime;
+  };
+
+  const validateForm = async () => {
     if (!formData.client_name.trim()) {
       setError('Client name is required');
       return false;
@@ -76,11 +182,32 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
       return false;
     }
     
-    // Check if appointment time is in the past
     const appointmentDate = new Date(formData.appointment_time);
     const now = new Date();
-    if (appointmentDate < now) {
+    
+    if (!isValid(appointmentDate)) {
+      setError('Invalid appointment time');
+      return false;
+    }
+    
+    if (isBefore(appointmentDate, now)) {
       setError('Appointment time cannot be in the past');
+      return false;
+    }
+
+    // Check if appointment is within working hours
+    if (!isWorkingHours(appointmentDate)) {
+      const suggested = await findNextAvailableSlot(appointmentDate);
+      setSuggestedTime(suggested.toISOString().slice(0, 16));
+      setError('Appointments can only be booked Monday-Friday, 8:00 AM - 4:30 PM, in 30-minute intervals. Please select a valid time or use the suggested time below.');
+      return false;
+    }
+
+    // Check for conflicts
+    const availableSlot = await findNextAvailableSlot(appointmentDate);
+    if (!isSameMinute(appointmentDate, availableSlot)) {
+      setSuggestedTime(availableSlot.toISOString().slice(0, 16));
+      setError(`Sorry, that time slot is not available. The next available appointment is suggested below.`);
       return false;
     }
 
@@ -90,7 +217,8 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    const isValid = await validateForm();
+    if (!isValid) {
       return;
     }
 
@@ -142,6 +270,15 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
     }
   };
 
+  const useSuggestedTime = () => {
+    setFormData(prev => ({
+      ...prev,
+      appointment_time: suggestedTime
+    }));
+    setSuggestedTime('');
+    setError('');
+  };
+
   const serviceOptions = [
     'Haircut',
     'Haircut & Wash',
@@ -180,11 +317,40 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-              <AlertCircle className="w-5 h-5 text-red-500" />
-              <span className="text-red-700 text-sm">{error}</span>
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center space-x-2 mb-2">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                <span className="text-red-700 text-sm font-medium">Booking Error</span>
+              </div>
+              <p className="text-red-700 text-sm">{error}</p>
+              
+              {suggestedTime && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-700 text-sm font-medium mb-2">Suggested alternative:</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-blue-600 text-sm">
+                      {format(new Date(suggestedTime), 'EEEE, MMMM d, yyyy \'at\' h:mm a')}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={useSuggestedTime}
+                      className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded font-medium transition-colors"
+                    >
+                      Use This Time
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
+
+          {/* Working Hours Notice */}
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-blue-700 text-sm">
+              <strong>Business Hours:</strong> Monday - Friday, 8:00 AM - 5:00 PM<br />
+              <strong>Appointment Duration:</strong> 30 minutes (times available every 30 minutes)
+            </p>
+          </div>
 
           {/* Client Name */}
           <div>
@@ -262,10 +428,14 @@ const AppointmentForm: React.FC<AppointmentFormProps> = ({
                 value={formData.appointment_time}
                 onChange={handleInputChange}
                 required
+                step="1800"
                 min={new Date().toISOString().slice(0, 16)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Appointments are scheduled in 30-minute intervals during business hours
+            </p>
           </div>
 
           {/* Status */}
