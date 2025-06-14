@@ -117,19 +117,17 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && (
           <div className="space-y-8">
-            {/* Top Row - Half Width Components */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
-              <div className="space-y-8">
-                <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
-                <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
-              </div>
+            {/* Full Width Business Metrics */}
+            <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
+            
+            {/* Three Column Layout - Live Calls, Appointments, Tasks */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} />
+              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
+              <TasksList businessId={business.id} compact isSimulating={!isLiveMode} />
             </div>
             
-            {/* Second Row - Tasks */}
-            <TasksList businessId={business.id} compact isSimulating={!isLiveMode} />
-            
-            {/* Bottom Row - Full Width Calendar */}
+            {/* Full Width Calendar */}
             <CalendarView businessId={business.id} compact isSimulating={!isLiveMode} />
           </div>
         )}

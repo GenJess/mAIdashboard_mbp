@@ -10,7 +10,7 @@ interface TasksListProps {
   isSimulating?: boolean;
 }
 
-const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSimulating = true }) => {
+const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSimulating }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -488,7 +488,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
           <div>
             <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
               <CheckSquare className="w-5 h-5 text-blue-500" />
-              <span>Tasks & To-Do List</span>
+              <span>Task List</span>
               {!compact && !isSimulating && (
                 <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                   Live Data
