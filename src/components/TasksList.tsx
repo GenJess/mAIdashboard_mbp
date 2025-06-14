@@ -600,7 +600,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
                   
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h3 className={`font-medium ${
+                      <h3 className={`font-medium truncate ${
                         task.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900'
                       }`}>
                         {task.title}
@@ -611,7 +611,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
                       <p className="text-sm text-gray-600 mb-3">{task.description}</p>
                     )}
                     
-                    <div className="flex items-center space-x-3 text-xs">
+                    <div className="flex items-center space-x-3 text-xs flex-wrap">
                       {/* Priority Dropdown */}
                       <div className="relative">
                         <button

@@ -397,25 +397,6 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
             );
           })}
         </div>
-
-        {/* Quick Action Buttons */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <button className="p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-blue-900 font-medium transition-colors">
-              Generate Report
-            </button>
-            <button className="p-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg text-green-900 font-medium transition-colors">
-              View Analytics
-            </button>
-            <button className="p-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-900 font-medium transition-colors">
-              Export Data
-            </button>
-            <button className="p-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg text-orange-900 font-medium transition-colors">
-              Manage Inventory
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
