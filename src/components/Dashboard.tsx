@@ -40,54 +40,52 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Activity className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">{business.name}</h1>
-                <p className="text-sm text-gray-500 capitalize">{business.type} Dashboard</p>
-              </div>
-              
-              {/* Data Mode Toggle */}
-              <button
-                onClick={toggleDataMode}
-                title="Simulated is fake data, live is real data"
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
-                  isLiveMode
-                    ? 'bg-green-100 hover:bg-green-200 text-green-800 border-2 border-green-300'
-                    : 'bg-blue-100 hover:bg-blue-200 text-blue-800 border-2 border-blue-300'
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full ${isLiveMode ? 'bg-green-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`}></div>
-                <span className="font-semibold">
-                  {isLiveMode ? 'Live Data' : 'Simulated Data'}
-                </span>
-              </button>
+    <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
+      {/* Header - Fixed height */}
+      <header className="bg-white shadow-sm border-b border-gray-200 flex-shrink-0">
+        <div className="h-16 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Activity className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">{business.name}</h1>
+              <p className="text-sm text-gray-500 capitalize">{business.type} Dashboard</p>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <VoiceAgentWidget />
-              <button
-                onClick={handleSignOut}
-                className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign Out</span>
-              </button>
-            </div>
+            {/* Data Mode Toggle */}
+            <button
+              onClick={toggleDataMode}
+              title="Simulated is fake data, live is real data"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                isLiveMode
+                  ? 'bg-green-100 hover:bg-green-200 text-green-800 border-2 border-green-300'
+                  : 'bg-blue-100 hover:bg-blue-200 text-blue-800 border-2 border-blue-300'
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full ${isLiveMode ? 'bg-green-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`}></div>
+              <span className="font-semibold">
+                {isLiveMode ? 'Live Data' : 'Simulated Data'}
+              </span>
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <VoiceAgentWidget />
+            <button
+              onClick={handleSignOut}
+              className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Navigation Tabs */}
-      <nav className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Navigation Tabs - Fixed height */}
+      <nav className="bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
             {[
               { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -113,36 +111,66 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === 'overview' && (
-          <div className="space-y-8">
-            {/* Full Width Business Metrics */}
-            <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
-            
-            {/* Three Equal Columns: Live Calls, Appointments, Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
-              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
-              <LiveFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
-            </div>
-          </div>
-        )}
+      {/* Main Content - Flexible height with container constraints */}
+      <main className="flex-1 overflow-hidden">
+        <div className="h-full px-4 sm:px-6 lg:px-8 py-6">
+          <div className="h-full max-w-7xl mx-auto">
+            {activeTab === 'overview' && (
+              <div className="h-full flex flex-col space-y-6">
+                {/* Business Metrics - Fixed height */}
+                <div className="flex-shrink-0">
+                  <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
+                </div>
+                
+                {/* Two Equal Columns - Flexible height */}
+                <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
+                  {/* Left Column */}
+                  <div className="flex flex-col space-y-6 min-h-0">
+                    <div className="flex-1 min-h-0">
+                      <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                    </div>
+                  </div>
+                  
+                  {/* Right Column */}
+                  <div className="flex flex-col space-y-6 min-h-0">
+                    <div className="flex-1 min-h-0">
+                      <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-        {activeTab === 'calendar' && (
-          <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-            <div className="xl:col-span-3">
-              <CalendarView businessId={business.id} isSimulating={!isLiveMode} />
-            </div>
-            <div>
-              <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
-            </div>
-          </div>
-        )}
+            {activeTab === 'calendar' && (
+              <div className="h-full grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-0">
+                <div className="xl:col-span-2 min-h-0">
+                  <CalendarView businessId={business.id} isSimulating={!isLiveMode} />
+                </div>
+                <div className="min-h-0">
+                  <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
+                </div>
+              </div>
+            )}
 
-        {activeTab === 'menu' && <MenuInventory businessId={business.id} isSimulating={!isLiveMode} />}
-        {activeTab === 'tasks' && <TasksList businessId={business.id} isSimulating={!isLiveMode} />}
-        {activeTab === 'livefeed' && <LiveFeed businessId={business.id} isSimulating={!isLiveMode} />}
+            {activeTab === 'menu' && (
+              <div className="h-full overflow-auto">
+                <MenuInventory businessId={business.id} isSimulating={!isLiveMode} />
+              </div>
+            )}
+
+            {activeTab === 'tasks' && (
+              <div className="h-full overflow-auto">
+                <TasksList businessId={business.id} isSimulating={!isLiveMode} />
+              </div>
+            )}
+
+            {activeTab === 'livefeed' && (
+              <div className="h-full overflow-auto">
+                <LiveFeed businessId={business.id} isSimulating={!isLiveMode} />
+              </div>
+            )}
+          </div>
+        </div>
       </main>
     </div>
   );
