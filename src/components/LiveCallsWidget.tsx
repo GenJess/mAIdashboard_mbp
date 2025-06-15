@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Phone, PhoneCall, PhoneOff, User, Clock, Mic, MicOff, Volume2 } from 'lucide-react';
+import { Phone, PhoneCall, PhoneOff, User, Clock, Mic, MicOff, Volume2, ChevronDown } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 
 type Call = Database['public']['Tables']['calls']['Row'];
@@ -25,6 +25,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
   const [callHistory, setCallHistory] = useState<Array<{ caller: string; time: Date; duration: number }>>([]);
   const [isAgentActive, setIsAgentActive] = useState(false);
   const [dbCalls, setDbCalls] = useState<Call[]>([]);
+  const [displayLimit, setDisplayLimit] = useState(5);
 
   // Real-time data fetching and subscription
   useEffect(() => {
@@ -108,7 +109,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
                     time: endedCall.startTime,
                     duration: Math.floor(callDuration / 1000),
                   },
-                  ...prevHistory.slice(0, 4), // Keep only last 5 calls
+                  ...prevHistory.slice(0, 19), // Keep only last 20 calls
                 ]);
               }
               return prev.filter(call => call.id !== newCall.id);
@@ -142,8 +143,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
         .from('calls')
         .select('*')
         .eq('business_id', businessId)
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching calls:', error);
@@ -161,7 +161,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
           duration: call.duration || 0,
         }));
       
-      setCallHistory(history.slice(0, 5));
+      setCallHistory(history);
     } catch (error) {
       console.error('Error fetching calls:', error);
     }
@@ -192,18 +192,24 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
   };
 
   const displayCalls = isSimulating ? activeCalls : [];
-  const displayHistory = isSimulating ? callHistory : callHistory;
+  const displayHistory = isSimulating ? callHistory.slice(0, displayLimit) : callHistory.slice(0, displayLimit);
   const totalCalls = isSimulating ? callHistory.length : dbCalls.length;
   const avgDuration = isSimulating 
     ? (callHistory.length > 0 ? Math.round(callHistory.reduce((acc, call) => acc + call.duration, 0) / callHistory.length) : 0)
     : (dbCalls.length > 0 ? Math.round(dbCalls.reduce((acc, call) => acc + (call.duration || 0), 0) / dbCalls.length) : 0);
 
+  const hasMoreCalls = (isSimulating ? callHistory.length : callHistory.length) > displayLimit;
+
+  const loadMoreCalls = () => {
+    setDisplayLimit(prev => prev + 5);
+  };
+
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-      <div className="p-6 border-b border-gray-300">
+    <div className="h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+      <div className="p-4 border-b border-gray-200 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
               <Phone className="w-5 h-5 text-blue-500" />
               <span>Live Calls</span>
               <div className={`w-2 h-2 rounded-full ${isAgentActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
@@ -233,11 +239,11 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
         </div>
       </div>
 
-      <div className={`${dashboardMode ? 'max-h-[400px]' : 'max-h-[400px]'} overflow-y-auto`}>
+      <div className="flex-1 overflow-y-auto min-h-0">
         {/* Active Calls */}
         {displayCalls.length > 0 && (
-          <div className="p-6 border-b border-gray-300">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+          <div className="p-4 border-b border-gray-200">
+            <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
               <PhoneCall className="w-4 h-4 text-green-500" />
               <span>Active Call</span>
             </h3>
@@ -245,7 +251,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
             {displayCalls.map((call) => (
               <div
                 key={call.id}
-                className={`p-4 rounded-lg border transition-all duration-300 ${
+                className={`p-3 rounded-lg border transition-all duration-300 ${
                   call.status === 'incoming' 
                     ? 'bg-yellow-50 border-yellow-200 animate-pulse' 
                     : 'bg-green-50 border-green-200'
@@ -253,18 +259,18 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       call.status === 'incoming' ? 'bg-yellow-500' : 'bg-green-500'
                     }`}>
-                      <User className="w-5 h-5 text-white" />
+                      <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{call.caller}</h4>
-                      <p className="text-sm text-gray-600">{call.phoneNumber}</p>
+                      <h4 className="font-medium text-gray-900 text-sm">{call.caller}</h4>
+                      <p className="text-xs text-gray-600">{call.phoneNumber}</p>
                       {call.purpose && (
-                        <p className="text-sm text-gray-500 mt-1">{call.purpose}</p>
+                        <p className="text-xs text-gray-500 mt-1">{call.purpose}</p>
                       )}
-                      <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                      <div className="flex items-center space-x-3 mt-2 text-xs text-gray-500">
                         <div className="flex items-center space-x-1">
                           <Clock className="w-3 h-3" />
                           <span>{formatDuration(call.duration)}</span>
@@ -283,9 +289,9 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
                     </span>
                     {call.status === 'incoming' && (
                       <div className="flex space-x-1">
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce"></div>
+                        <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                       </div>
                     )}
                   </div>
@@ -296,23 +302,23 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
         )}
 
         {/* Call History */}
-        <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+        <div className="p-4 flex-1">
+          <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
             <PhoneOff className="w-4 h-4 text-gray-500" />
             <span>Recent Calls</span>
           </h3>
           
           {displayHistory.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {displayHistory.map((call, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-100 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-gray-400 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-gray-600" />
+                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center">
+                      <User className="w-3 h-3 text-gray-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{call.caller}</p>
-                      <p className="text-sm text-gray-500">Duration: {formatDuration(call.duration)}</p>
+                      <p className="font-medium text-gray-900 text-sm">{call.caller}</p>
+                      <p className="text-xs text-gray-500">{formatDuration(call.duration)}</p>
                     </div>
                   </div>
                   <span className="text-xs text-gray-500">
@@ -320,29 +326,39 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
                   </span>
                 </div>
               ))}
+              
+              {hasMoreCalls && (
+                <button
+                  onClick={loadMoreCalls}
+                  className="w-full mt-3 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                  <span>Load More Calls</span>
+                </button>
+              )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Phone className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No recent calls</p>
-              <p className="text-sm">Call history will appear here</p>
+            <div className="text-center py-6 text-gray-500">
+              <Phone className="w-8 h-8 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">No recent calls</p>
+              <p className="text-xs">Call history will appear here</p>
             </div>
           )}
         </div>
 
         {/* Call Statistics */}
-        <div className="p-6 border-t border-gray-300 bg-gray-100">
+        <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-blue-600">{totalCalls}</div>
+              <div className="text-lg font-bold text-blue-600">{totalCalls}</div>
               <div className="text-xs text-gray-600">Calls Today</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600">{avgDuration}s</div>
+              <div className="text-lg font-bold text-green-600">{avgDuration}s</div>
               <div className="text-xs text-gray-600">Avg Duration</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-purple-600">
+              <div className="text-lg font-bold text-purple-600">
                 {displayCalls.length > 0 ? '100%' : '0%'}
               </div>
               <div className="text-xs text-gray-600">Answer Rate</div>

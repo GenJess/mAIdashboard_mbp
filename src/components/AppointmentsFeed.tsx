@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, User, CheckCircle, Calendar, AlertCircle, Plus, Edit, Zap } from 'lucide-react';
+import { Clock, User, CheckCircle, Calendar, AlertCircle, Plus, Edit, Zap, ChevronDown } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 import AppointmentForm from './AppointmentForm';
 
@@ -15,6 +15,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(5);
 
   // Real-time data fetching and subscription
   useEffect(() => {
@@ -123,7 +124,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
 
         setAppointments(prev => {
           const updated = [newAppointment, ...prev];
-          return updated.slice(0, 8); // Keep only latest 8 appointments
+          return updated.slice(0, 20); // Keep only latest 20 appointments
         });
       }, 10000);
 
@@ -138,8 +139,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
         .select('*')
         .eq('business_id', businessId)
         .gte('appointment_time', new Date().toISOString()) // Only upcoming appointments
-        .order('appointment_time', { ascending: true })
-        .limit(8);
+        .order('appointment_time', { ascending: true });
 
       if (error) {
         console.error('Error fetching appointments:', error);
@@ -238,13 +238,20 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
     return diffInMinutes >= -15 && diffInMinutes <= 15;
   };
 
+  const displayedAppointments = appointments.slice(0, displayLimit);
+  const hasMoreAppointments = appointments.length > displayLimit;
+
+  const loadMoreAppointments = () => {
+    setDisplayLimit(prev => prev + 5);
+  };
+
   return (
     <>
-      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-        <div className="p-6 border-b border-gray-300">
-          <div className="flex items-center justify-between mb-4">
+      <div className="h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-gray-200 flex-shrink-0">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 <Calendar className="w-5 h-5 text-blue-500" />
                 <span>Upcoming Appointments</span>
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -263,36 +270,36 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
           {!dashboardMode && (
             <button
               onClick={handleNewAppointment}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-4 h-4" />
               <span>Book New Appointment</span>
             </button>
           )}
         </div>
 
-        <div className={`${dashboardMode ? 'max-h-[400px]' : 'max-h-[400px]'} overflow-y-auto`}>
-          <div className="space-y-1 p-4">
-            {appointments.map((appointment) => {
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="space-y-2 p-4">
+            {displayedAppointments.map((appointment) => {
               const isLive = isLiveAppointment(appointment.appointment_time);
               
               return (
                 <div
                   key={appointment.id}
-                  className={`p-4 rounded-lg border transition-all duration-300 ${
+                  className={`p-3 rounded-lg border transition-all duration-300 ${
                     isLive 
                       ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-300' 
-                      : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                      : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1">
-                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center space-x-2 mb-1">
-                          <h3 className="font-medium text-gray-900">{appointment.client_name}</h3>
+                          <h3 className="font-medium text-gray-900 text-sm">{appointment.client_name}</h3>
                           {isLive && (
                             <span className="px-2 py-1 text-xs font-bold bg-orange-500 text-white rounded-full animate-pulse flex items-center space-x-1">
                               <Zap className="w-3 h-3" />
@@ -300,8 +307,8 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600 mb-2">{appointment.service}</p>
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
+                        <p className="text-xs text-gray-600 mb-2">{appointment.service}</p>
+                        <div className="flex items-center space-x-3 text-xs text-gray-500">
                           <div className="flex items-center space-x-1">
                             <Clock className="w-3 h-3" />
                             <span>{formatAppointmentTime(appointment.appointment_time)}</span>
@@ -316,13 +323,13 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                       {!dashboardMode && (
                         <button
                           onClick={() => handleEditAppointment(appointment)}
-                          className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Edit appointment"
                         >
-                          <Edit className="w-4 h-4" />
+                          <Edit className="w-3 h-3" />
                         </button>
                       )}
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1">
                         {getStatusIcon(appointment.status)}
                         <span className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(appointment.status)}`}>
                           {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -334,14 +341,24 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
               );
             })}
             
-            {appointments.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No upcoming appointments</p>
-                <p className="text-sm">
+            {displayedAppointments.length === 0 && (
+              <div className="text-center py-6 text-gray-500">
+                <Calendar className="w-8 h-8 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">No upcoming appointments</p>
+                <p className="text-xs">
                   {isSimulating ? 'Simulated bookings will appear here' : 'New bookings will appear here in real-time'}
                 </p>
               </div>
+            )}
+
+            {hasMoreAppointments && (
+              <button
+                onClick={loadMoreAppointments}
+                className="w-full mt-3 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition-colors"
+              >
+                <ChevronDown className="w-4 h-4" />
+                <span>Load More Appointments</span>
+              </button>
             )}
           </div>
         </div>

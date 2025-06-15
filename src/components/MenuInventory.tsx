@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Minus, Plus, ShoppingCart, AlertTriangle, TrendingDown, TrendingUp } from 'lucide-react';
+import { Package, Minus, Plus, ShoppingCart, AlertTriangle, TrendingDown, TrendingUp, ChevronDown } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 
 type MenuItem = Database['public']['Tables']['menu_items']['Row'];
@@ -14,6 +14,9 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [recentSales, setRecentSales] = useState<Array<{ item: string; quantity: number; timestamp: Date }>>([]);
+  const [displayLimitMenu, setDisplayLimitMenu] = useState(4);
+  const [displayLimitInventory, setDisplayLimitInventory] = useState(8);
+  const [displayLimitSales, setDisplayLimitSales] = useState(5);
 
   // Real-time data fetching and subscription
   useEffect(() => {
@@ -150,7 +153,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
         // Add to recent sales
         setRecentSales(prev => [
           { item: randomMenuItem.name, quantity, timestamp: new Date() },
-          ...prev.slice(0, 4)
+          ...prev.slice(0, 19) // Keep only last 20 sales
         ]);
       }, 8000);
 
@@ -310,7 +313,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
     // Add to recent sales (both modes)
     setRecentSales(prev => [
       { item: menuItem.name, quantity, timestamp: new Date() },
-      ...prev.slice(0, 4)
+      ...prev.slice(0, 19) // Keep only last 20 sales
     ]);
   };
 
@@ -354,33 +357,41 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
     return `${Math.floor(diffInMinutes / 60)}h ago`;
   };
 
+  const displayedMenuItems = menuItems.slice(0, displayLimitMenu);
+  const displayedInventory = inventory.slice(0, displayLimitInventory);
+  const displayedSales = recentSales.slice(0, displayLimitSales);
+
+  const hasMoreMenuItems = menuItems.length > displayLimitMenu;
+  const hasMoreInventory = inventory.length > displayLimitInventory;
+  const hasMoreSales = recentSales.length > displayLimitSales;
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Low Stock Alert */}
       {getLowStockItems().length > 0 && (
-        <div className="bg-red-50 border border-red-300 rounded-xl p-6">
-          <div className="flex items-center space-x-2 mb-4">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center space-x-2 mb-3">
             <AlertTriangle className="w-5 h-5 text-red-500" />
-            <h3 className="text-lg font-semibold text-red-900">Low Stock Alert</h3>
+            <h3 className="text-base font-semibold text-red-900">Low Stock Alert</h3>
             {!isSimulating && (
               <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                 Live Data
               </span>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {getLowStockItems().map(item => (
-              <div key={item.id} className="bg-white rounded-lg p-4 border border-red-300">
+              <div key={item.id} className="bg-white rounded-lg p-3 border border-red-200">
                 <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-medium text-red-900">{item.name}</h4>
+                  <h4 className="font-medium text-red-900 text-sm">{item.name}</h4>
                   <TrendingDown className="w-4 h-4 text-red-500" />
                 </div>
-                <p className="text-sm text-red-700">
+                <p className="text-xs text-red-700">
                   Only {item.quantity} {item.unit} left
                 </p>
                 <button
                   onClick={() => restockItem(item.id, 50)}
-                  className="mt-2 w-full bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded-lg text-sm font-medium transition-colors"
+                  className="mt-2 w-full bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded-lg text-xs font-medium transition-colors"
                 >
                   Quick Restock
                 </button>
@@ -390,12 +401,12 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Menu Items */}
-        <div className="xl:col-span-2 space-y-6">
-          <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-            <div className="p-6 border-b border-gray-300">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+        <div className="xl:col-span-2 space-y-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 <ShoppingCart className="w-5 h-5 text-blue-500" />
                 <span>Menu Items</span>
                 {!isSimulating && (
@@ -407,26 +418,26 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
               <p className="text-gray-600 text-sm mt-1">Manage your products and services</p>
             </div>
 
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {menuItems.map(item => (
-                  <div key={item.id} className="bg-gray-100 rounded-lg p-4 border border-gray-300">
-                    <div className="flex items-start justify-between mb-3">
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {displayedMenuItems.map(item => (
+                  <div key={item.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                    <div className="flex items-start justify-between mb-2">
                       <div>
-                        <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                        <p className="text-sm text-gray-600">{item.category}</p>
-                        <p className="text-lg font-bold text-green-600 mt-1">${item.price}</p>
+                        <h3 className="font-medium text-base text-gray-900">{item.name}</h3>
+                        <p className="text-xs text-gray-600">{item.category}</p>
+                        <p className="text-base font-bold text-green-600 mt-1">${item.price}</p>
                       </div>
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                      <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full text-xs font-medium">
                         {item.sold_count || 0} sold
                       </span>
                     </div>
 
-                    <div className="mb-4">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Ingredients Used:</h4>
+                    <div className="mb-3">
+                      <h4 className="text-xs font-medium text-gray-700 mb-2">Ingredients Used:</h4>
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(item.ingredients).map(([ingredient, quantity]) => (
-                          <span key={ingredient} className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">
+                          <span key={ingredient} className="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded text-xs">
                             {quantity}x {ingredient}
                           </span>
                         ))}
@@ -435,52 +446,72 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
 
                     <button
                       onClick={() => sellItem(item)}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                      className="w-full bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg font-medium transition-colors text-sm"
                     >
                       Sell Item
                     </button>
                   </div>
                 ))}
               </div>
+
+              {hasMoreMenuItems && (
+                <button
+                  onClick={() => setDisplayLimitMenu(prev => prev + 4)}
+                  className="w-full mt-4 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                  <span>Load More Menu Items</span>
+                </button>
+              )}
             </div>
           </div>
 
           {/* Recent Sales */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-            <div className="p-6 border-b border-gray-300">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900 flex items-center space-x-2">
                 <TrendingUp className="w-5 h-5 text-green-500" />
                 <span>Recent Sales</span>
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               </h3>
             </div>
-            <div className="p-6">
-              {recentSales.length > 0 ? (
-                <div className="space-y-3">
-                  {recentSales.map((sale, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+            <div className="p-4">
+              {displayedSales.length > 0 ? (
+                <div className="space-y-2">
+                  {displayedSales.map((sale, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
                       <div>
-                        <p className="font-medium text-green-900">{sale.item}</p>
-                        <p className="text-sm text-green-700">Quantity: {sale.quantity}</p>
+                        <p className="font-medium text-green-900 text-sm">{sale.item}</p>
+                        <p className="text-xs text-green-700">Quantity: {sale.quantity}</p>
                       </div>
                       <span className="text-xs text-green-600">
                         {formatTimeAgo(sale.timestamp)}
                       </span>
                     </div>
                   ))}
+
+                  {hasMoreSales && (
+                    <button
+                      onClick={() => setDisplayLimitSales(prev => prev + 5)}
+                      className="w-full mt-3 flex items-center justify-center space-x-2 px-3 py-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                      <span>Load More Sales</span>
+                    </button>
+                  )}
                 </div>
               ) : (
-                <p className="text-gray-500 text-center py-4">No recent sales</p>
+                <p className="text-gray-500 text-center py-4 text-sm">No recent sales</p>
               )}
             </div>
           </div>
         </div>
 
         {/* Inventory */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-            <div className="p-6 border-b border-gray-300">
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 <Package className="w-5 h-5 text-blue-500" />
                 <span>Inventory</span>
                 {!isSimulating && (
@@ -492,16 +523,16 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
               <p className="text-gray-600 text-sm mt-1">Real-time stock levels</p>
             </div>
 
-            <div className="max-h-[600px] overflow-y-auto">
-              <div className="p-6 space-y-4">
-                {inventory.map(item => (
-                  <div key={item.id} className={`p-4 rounded-lg border ${
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-4 space-y-3">
+                {displayedInventory.map(item => (
+                  <div key={item.id} className={`p-3 rounded-lg border ${
                     item.quantity <= item.low_stock_threshold 
-                      ? 'bg-red-50 border-red-300' 
-                      : 'bg-gray-100 border-gray-300'
+                      ? 'bg-red-50 border-red-200' 
+                      : 'bg-gray-50 border-gray-200'
                   }`}>
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
+                      <h3 className="font-medium text-gray-900 text-sm">{item.name}</h3>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         item.quantity <= item.low_stock_threshold 
                           ? 'bg-red-100 text-red-800' 
@@ -511,7 +542,7 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
                       </span>
                     </div>
                     
-                    <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                    <div className="flex items-center justify-between text-xs text-gray-600 mb-2">
                       <span>Cost: ${item.cost_per_unit}</span>
                       <span>Low stock: {item.low_stock_threshold}</span>
                     </div>
@@ -520,14 +551,14 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
                       <button
                         onClick={() => restockItem(item.id, -5)}
                         disabled={item.quantity <= 0}
-                        className="flex-1 bg-red-100 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed text-red-800 px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-1"
+                        className="flex-1 bg-red-100 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed text-red-800 px-2 py-1 rounded-lg text-xs font-medium transition-colors flex items-center justify-center space-x-1"
                       >
                         <Minus className="w-3 h-3" />
                         <span>Use</span>
                       </button>
                       <button
                         onClick={() => restockItem(item.id, 10)}
-                        className="flex-1 bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-1"
+                        className="flex-1 bg-green-100 hover:bg-green-200 text-green-800 px-2 py-1 rounded-lg text-xs font-medium transition-colors flex items-center justify-center space-x-1"
                       >
                         <Plus className="w-3 h-3" />
                         <span>Add</span>
@@ -535,6 +566,16 @@ const MenuInventory: React.FC<MenuInventoryProps> = ({ businessId, isSimulating 
                     </div>
                   </div>
                 ))}
+
+                {hasMoreInventory && (
+                  <button
+                    onClick={() => setDisplayLimitInventory(prev => prev + 8)}
+                    className="w-full mt-3 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                    <span>Load More Inventory</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>

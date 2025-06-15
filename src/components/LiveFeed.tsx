@@ -506,6 +506,10 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
   const displayedActivities = filteredActivities.slice(0, displayLimit);
   const hasMoreActivities = filteredActivities.length > displayLimit;
 
+  const loadMoreActivities = () => {
+    setDisplayLimit(prev => prev + 20);
+  };
+
   const filterOptions = [
     { value: 'all', label: 'All Activities', icon: Activity },
     { value: 'core', label: 'Core Business', icon: Star },
@@ -521,11 +525,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
   if (dashboardMode) {
     // Dashboard mode - compact layout
     return (
-      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-        <div className="p-6 border-b border-gray-300">
+      <div className="h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-gray-200 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 <Activity className="w-5 h-5 text-blue-500" />
                 <span>Recent Activity</span>
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
@@ -542,9 +546,9 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
           </div>
         </div>
 
-        <div className="max-h-[400px] overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {displayedActivities.length > 0 ? (
-            <div className="divide-y divide-gray-300">
+            <div className="divide-y divide-gray-200">
               {displayedActivities.map((activity) => {
                 const IconComponent = getActivityIcon(activity.type);
                 const colorClasses = getActivityColor(activity.type, activity.action);
@@ -553,7 +557,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
                 return (
                   <div 
                     key={activity.id} 
-                    className={`p-4 transition-all duration-200 ${containerStyle.container} ${containerStyle.hover}`}
+                    className={`p-3 transition-all duration-200 ${containerStyle.container} ${containerStyle.hover}`}
                   >
                     <div className="flex items-start space-x-3">
                       <div className="relative">
@@ -603,7 +607,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
         </div>
 
         {/* View All Button */}
-        <div className="p-4 border-t border-gray-300 bg-gray-50">
+        <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
           <button
             onClick={() => window.location.hash = '#livefeed'}
             className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
@@ -620,11 +624,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-        <div className="p-6 border-b border-gray-300">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
                 <Activity className="w-5 h-5 text-blue-500" />
                 <span>Live Activity Feed</span>
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
@@ -657,7 +661,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
         </div>
 
         {/* Connection Status */}
-        <div className="px-6 py-3 bg-gray-100 border-b border-gray-300">
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -687,10 +691,10 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
       </div>
 
       {/* Activity Feed */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-        <div className="max-h-[600px] overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
           {displayedActivities.length > 0 ? (
-            <div className="divide-y divide-gray-300">
+            <div className="divide-y divide-gray-200">
               {displayedActivities.map((activity) => {
                 const IconComponent = getActivityIcon(activity.type);
                 const colorClasses = getActivityColor(activity.type, activity.action);
@@ -700,7 +704,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
                 return (
                   <div 
                     key={activity.id} 
-                    className={`p-6 transition-all duration-200 ${containerStyle.container} ${containerStyle.hover}`}
+                    className={`p-4 transition-all duration-200 ${containerStyle.container} ${containerStyle.hover}`}
                   >
                     <div className="flex items-start space-x-4">
                       <div className="relative">
@@ -761,9 +765,9 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
 
         {/* Load More Button */}
         {hasMoreActivities && (
-          <div className="p-4 border-t border-gray-300 bg-gray-50">
+          <div className="p-4 border-t border-gray-200 bg-gray-50">
             <button
-              onClick={() => setDisplayLimit(prev => prev + 20)}
+              onClick={loadMoreActivities}
               className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
             >
               <ChevronDown className="w-4 h-4" />

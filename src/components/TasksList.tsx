@@ -18,6 +18,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
   const [sortBy, setSortBy] = useState<string>('created_at_desc');
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [displayLimit, setDisplayLimit] = useState(compact ? 4 : 10);
 
   // Mock employees for assignment
   const mockEmployees = [
@@ -172,7 +173,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
 
         setTasks(prev => {
           const updated = [newTask, ...prev];
-          return updated.slice(0, compact ? 4 : 10);
+          return updated.slice(0, 20); // Keep only latest 20 tasks
         });
       }, 12000);
 
@@ -186,8 +187,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
         .from('tasks')
         .select('*')
         .eq('business_id', businessId)
-        .order('created_at', { ascending: false })
-        .limit(compact ? 4 : 20);
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching tasks:', error);
@@ -416,11 +416,16 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
         filtered = tasks;
     }
     
-    const sorted = sortTasks(filtered);
-    return compact ? sorted.slice(0, 4) : sorted;
+    return sortTasks(filtered);
   };
 
-  const displayTasks = filteredAndSortedTasks();
+  const allFilteredTasks = filteredAndSortedTasks();
+  const displayTasks = allFilteredTasks.slice(0, displayLimit);
+  const hasMoreTasks = allFilteredTasks.length > displayLimit;
+
+  const loadMoreTasks = () => {
+    setDisplayLimit(prev => prev + 10);
+  };
 
   const sortOptions = [
     { value: 'created_at_desc', label: 'Newest First' },
@@ -483,10 +488,10 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
               <CheckSquare className="w-5 h-5 text-blue-500" />
               <span>Task List</span>
               {!compact && !isSimulating && (
@@ -572,12 +577,12 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
         )}
       </div>
 
-      <div className={`${compact ? 'max-h-[300px]' : 'max-h-[600px]'} overflow-y-auto`}>
-        <div className="p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-3">
           {displayTasks.map((task) => (
             <div
               key={task.id}
-              className={`p-4 rounded-lg border transition-all duration-300 ${
+              className={`p-3 rounded-lg border transition-all duration-300 ${
                 task.status === 'completed'
                   ? 'bg-green-50 border-green-200 opacity-75'
                   : isOverdue(task.due_date)
@@ -589,18 +594,18 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
                 <div className="flex items-start space-x-3 flex-1">
                   <button
                     onClick={() => toggleTaskStatus(task.id)}
-                    className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                    className={`mt-1 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
                       task.status === 'completed'
                         ? 'bg-green-500 border-green-500 text-white'
                         : 'border-gray-300 hover:border-gray-400'
                     }`}
                   >
-                    {task.status === 'completed' && <Check className="w-3 h-3" />}
+                    {task.status === 'completed' && <Check className="w-2.5 h-2.5" />}
                   </button>
                   
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-1">
-                      <h3 className={`font-medium truncate ${
+                      <h3 className={`font-medium text-sm truncate ${
                         task.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900'
                       }`}>
                         {task.title}
@@ -608,10 +613,10 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
                     </div>
                     
                     {!compact && (
-                      <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+                      <p className="text-xs text-gray-600 mb-2">{task.description}</p>
                     )}
                     
-                    <div className="flex items-center space-x-3 text-xs flex-wrap">
+                    <div className="flex items-center space-x-2 text-xs flex-wrap">
                       {/* Priority Dropdown */}
                       <div className="relative">
                         <button
@@ -773,13 +778,23 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
           ))}
           
           {displayTasks.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <CheckSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No tasks found</p>
-              <p className="text-sm">
+            <div className="text-center py-6 text-gray-500">
+              <CheckSquare className="w-8 h-8 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">No tasks found</p>
+              <p className="text-xs">
                 {filter === 'all' ? 'Add tasks to stay organized' : `No ${filter} tasks`}
               </p>
             </div>
+          )}
+
+          {hasMoreTasks && (
+            <button
+              onClick={loadMoreTasks}
+              className="w-full mt-3 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-sm font-medium transition-colors"
+            >
+              <ChevronDown className="w-4 h-4" />
+              <span>Load More Tasks ({allFilteredTasks.length - displayLimit} remaining)</span>
+            </button>
           )}
         </div>
       </div>
