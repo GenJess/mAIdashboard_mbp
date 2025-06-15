@@ -5,6 +5,7 @@ import AuthForm from './components/AuthForm';
 import BusinessSetup from './components/BusinessSetup';
 import Dashboard from './components/Dashboard';
 import DemoPage from './components/DemoPage';
+import HomePage from './components/HomePage';
 import { Activity, ChevronDown } from 'lucide-react';
 
 function App() {
@@ -111,7 +112,7 @@ function App() {
       case 'demo':
         return <DemoPage />;
       case 'home':
-        return <PlaceholderPage title="Home" />;
+        return <HomePage />;
       case 'learnMore':
         return <PlaceholderPage title="Learn More" />;
       case 'pricing':
@@ -141,13 +142,13 @@ function App() {
 
         return <Dashboard business={business} />;
       default:
-        return <PlaceholderPage title="Home" />;
+        return <HomePage />;
     }
   };
 
   return (
     <div className="min-h-screen">
-      <Navigation />
+      {currentPage !== 'home' && <Navigation />}
       {renderPage()}
     </div>
   );
