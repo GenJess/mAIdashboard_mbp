@@ -97,19 +97,19 @@ const DemoPage: React.FC = () => {
                 <div className="h-full flex flex-col space-y-6">
                   {/* Business Metrics */}
                   <div className="flex-shrink-0">
-                    <BusinessMetrics businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                    <BusinessMetrics businessId={mockBusiness.id} isSimulating={true} />
                   </div>
                   
                   {/* Two Equal Columns */}
                   <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
                     {/* Left Column - Live Calls */}
                     <div className="min-h-0">
-                      <LiveCallsWidget businessId={mockBusiness.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                      <LiveCallsWidget businessId={mockBusiness.id} isSimulating={true} dashboardMode={true} />
                     </div>
                     
                     {/* Right Column - Appointments */}
                     <div className="min-h-0">
-                      <AppointmentsFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                      <AppointmentsFeed businessId={mockBusiness.id} isSimulating={true} dashboardMode={true} />
                     </div>
                   </div>
                 </div>
@@ -118,29 +118,29 @@ const DemoPage: React.FC = () => {
               {activeTab === 'calendar' && (
                 <div className="h-full grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-0">
                   <div className="xl:col-span-2 min-h-0">
-                    <CalendarView businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                    <CalendarView businessId={mockBusiness.id} isSimulating={true} />
                   </div>
                   <div className="min-h-0">
-                    <AppointmentsFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                    <AppointmentsFeed businessId={mockBusiness.id} isSimulating={true} />
                   </div>
                 </div>
               )}
 
               {activeTab === 'menu' && (
                 <div className="h-full overflow-auto">
-                  <MenuInventory businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                  <MenuInventory businessId={mockBusiness.id} isSimulating={true} />
                 </div>
               )}
 
               {activeTab === 'tasks' && (
                 <div className="h-full overflow-auto">
-                  <TasksList businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                  <TasksList businessId={mockBusiness.id} isSimulating={true} />
                 </div>
               )}
 
               {activeTab === 'livefeed' && (
                 <div className="h-full overflow-auto">
-                  <LiveFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                  <LiveFeed businessId={mockBusiness.id} isSimulating={true} />
                 </div>
               )}
             </div>
