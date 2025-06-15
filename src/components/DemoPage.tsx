@@ -1,0 +1,161 @@
+import React, { useState } from 'react';
+import { Activity, Calendar, Package, BarChart3, CheckSquare, Rss } from 'lucide-react';
+import BusinessMetrics from './BusinessMetrics';
+import AppointmentsFeed from './AppointmentsFeed';
+import LiveCallsWidget from './LiveCallsWidget';
+import CalendarView from './CalendarView';
+import MenuInventory from './MenuInventory';
+import TasksList from './TasksList';
+import LiveFeed from './LiveFeed';
+
+const DemoPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [isLiveMode, setIsLiveMode] = useState(false);
+  
+  // Mock business data for demo
+  const mockBusiness = {
+    id: 'demo-business-id',
+    name: 'Demo Business',
+    type: 'barbershop'
+  };
+
+  const toggleDataMode = () => {
+    setIsLiveMode(!isLiveMode);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* Page Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="h-16 flex justify-between items-center">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <Activity className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-semibold text-gray-900">Demo</h1>
+                <p className="text-sm text-gray-500">Interactive Business Dashboard</p>
+              </div>
+            </div>
+            
+            {/* Data Mode Toggle */}
+            <button
+              onClick={toggleDataMode}
+              title="Switch between simulated and live data"
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+                isLiveMode
+                  ? 'bg-green-100 hover:bg-green-200 text-green-800 border-2 border-green-300'
+                  : 'bg-blue-100 hover:bg-blue-200 text-blue-800 border-2 border-blue-300'
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full ${isLiveMode ? 'bg-green-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`}></div>
+              <span className="font-semibold text-sm">
+                {isLiveMode ? 'live' : 'sim'}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Dashboard Container */}
+        <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden mb-8">
+          {/* Dashboard Navigation */}
+          <div className="bg-white border-b border-gray-200">
+            <div className="px-6">
+              <div className="flex space-x-8">
+                {[
+                  { id: 'overview', label: 'Overview', icon: BarChart3 },
+                  { id: 'calendar', label: 'Calendar', icon: Calendar },
+                  { id: 'menu', label: 'Menu & Inventory', icon: Package },
+                  { id: 'tasks', label: 'Tasks', icon: CheckSquare },
+                  { id: 'livefeed', label: 'Live Feed', icon: Rss },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                      activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Dashboard Content */}
+          <div className="p-6">
+            <div className="h-[600px]">
+              {activeTab === 'overview' && (
+                <div className="h-full flex flex-col space-y-6">
+                  {/* Business Metrics */}
+                  <div className="flex-shrink-0">
+                    <BusinessMetrics businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                  </div>
+                  
+                  {/* Two Equal Columns */}
+                  <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
+                    {/* Left Column - Live Calls */}
+                    <div className="min-h-0">
+                      <LiveCallsWidget businessId={mockBusiness.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                    </div>
+                    
+                    {/* Right Column - Appointments */}
+                    <div className="min-h-0">
+                      <AppointmentsFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'calendar' && (
+                <div className="h-full grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-0">
+                  <div className="xl:col-span-2 min-h-0">
+                    <CalendarView businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                  </div>
+                  <div className="min-h-0">
+                    <AppointmentsFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'menu' && (
+                <div className="h-full overflow-auto">
+                  <MenuInventory businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                </div>
+              )}
+
+              {activeTab === 'tasks' && (
+                <div className="h-full overflow-auto">
+                  <TasksList businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                </div>
+              )}
+
+              {activeTab === 'livefeed' && (
+                <div className="h-full overflow-auto">
+                  <LiveFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Space for ElevenLabs Widget */}
+        <div className="h-24 flex items-center justify-center">
+          <p className="text-gray-500 text-sm">
+            ElevenLabs widget will appear here
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default DemoPage;

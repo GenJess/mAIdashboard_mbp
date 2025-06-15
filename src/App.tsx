@@ -4,10 +4,19 @@ import { useBusiness } from './hooks/useBusiness';
 import AuthForm from './components/AuthForm';
 import BusinessSetup from './components/BusinessSetup';
 import Dashboard from './components/Dashboard';
+import DemoPage from './components/DemoPage';
 
 function App() {
   const { user, loading: authLoading } = useAuth();
   const { business, loading: businessLoading } = useBusiness();
+
+  // Check if we're on the demo route
+  const isDemo = window.location.pathname === '/demo' || window.location.hash === '#demo';
+
+  // If it's demo mode, show the demo page
+  if (isDemo) {
+    return <DemoPage />;
+  }
 
   if (authLoading || businessLoading) {
     return (
