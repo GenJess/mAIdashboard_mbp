@@ -12,9 +12,9 @@ const DemoPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [isLiveMode, setIsLiveMode] = useState(false);
   
-  // Mock business data for demo
+  // Real business data from Supabase
   const mockBusiness = {
-    id: 'demo-business-id',
+    id: '44fbb045-4885-4f95-bd66-d84200833fa2', // Real business ID from your Supabase
     name: 'Demo Business',
     type: 'barbershop'
   };
@@ -51,7 +51,7 @@ const DemoPage: React.FC = () => {
             >
               <div className={`w-2 h-2 rounded-full ${isLiveMode ? 'bg-green-500 animate-pulse' : 'bg-blue-500 animate-pulse'}`}></div>
               <span className="font-semibold text-sm">
-                {isLiveMode ? 'live' : 'sim'}
+                {isLiveMode ? 'Live Data' : 'Simulated Data'}
               </span>
             </button>
           </div>
@@ -97,19 +97,19 @@ const DemoPage: React.FC = () => {
                 <div className="h-full flex flex-col space-y-6">
                   {/* Business Metrics */}
                   <div className="flex-shrink-0">
-                    <BusinessMetrics businessId={mockBusiness.id} isSimulating={true} />
+                    <BusinessMetrics businessId={mockBusiness.id} isSimulating={!isLiveMode} />
                   </div>
                   
                   {/* Two Equal Columns */}
                   <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
                     {/* Left Column - Live Calls */}
                     <div className="min-h-0">
-                      <LiveCallsWidget businessId={mockBusiness.id} isSimulating={true} dashboardMode={true} />
+                      <LiveCallsWidget businessId={mockBusiness.id} isSimulating={!isLiveMode} dashboardMode={true} />
                     </div>
                     
                     {/* Right Column - Appointments */}
                     <div className="min-h-0">
-                      <AppointmentsFeed businessId={mockBusiness.id} isSimulating={true} dashboardMode={true} />
+                      <AppointmentsFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} dashboardMode={true} />
                     </div>
                   </div>
                 </div>
@@ -118,29 +118,29 @@ const DemoPage: React.FC = () => {
               {activeTab === 'calendar' && (
                 <div className="h-full grid grid-cols-1 xl:grid-cols-3 gap-6 min-h-0">
                   <div className="xl:col-span-2 min-h-0">
-                    <CalendarView businessId={mockBusiness.id} isSimulating={true} />
+                    <CalendarView businessId={mockBusiness.id} isSimulating={!isLiveMode} />
                   </div>
                   <div className="min-h-0">
-                    <AppointmentsFeed businessId={mockBusiness.id} isSimulating={true} />
+                    <AppointmentsFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} />
                   </div>
                 </div>
               )}
 
               {activeTab === 'menu' && (
                 <div className="h-full overflow-auto">
-                  <MenuInventory businessId={mockBusiness.id} isSimulating={true} />
+                  <MenuInventory businessId={mockBusiness.id} isSimulating={!isLiveMode} />
                 </div>
               )}
 
               {activeTab === 'tasks' && (
                 <div className="h-full overflow-auto">
-                  <TasksList businessId={mockBusiness.id} isSimulating={true} />
+                  <TasksList businessId={mockBusiness.id} isSimulating={!isLiveMode} />
                 </div>
               )}
 
               {activeTab === 'livefeed' && (
                 <div className="h-full overflow-auto">
-                  <LiveFeed businessId={mockBusiness.id} isSimulating={true} />
+                  <LiveFeed businessId={mockBusiness.id} isSimulating={!isLiveMode} />
                 </div>
               )}
             </div>
