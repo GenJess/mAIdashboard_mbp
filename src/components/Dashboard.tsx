@@ -116,26 +116,22 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
         <div className="h-full px-4 sm:px-6 lg:px-8 py-6">
           <div className="h-full max-w-7xl mx-auto">
             {activeTab === 'overview' && (
-              <div className="h-full flex flex-col space-y-6">
-                {/* Business Metrics - Fixed height */}
+              <div className="h-full flex flex-col space-y-4">
+                {/* Business Metrics - Compact height */}
                 <div className="flex-shrink-0">
                   <BusinessMetrics businessId={business.id} isSimulating={!isLiveMode} />
                 </div>
                 
-                {/* Two Equal Columns - Flexible height */}
+                {/* Two Equal Columns - Takes remaining space */}
                 <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
-                  {/* Left Column */}
-                  <div className="flex flex-col space-y-6 min-h-0">
-                    <div className="flex-1 min-h-0">
-                      <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
-                    </div>
+                  {/* Left Column - Live Calls */}
+                  <div className="min-h-0">
+                    <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
                   </div>
                   
-                  {/* Right Column */}
-                  <div className="flex flex-col space-y-6 min-h-0">
-                    <div className="flex-1 min-h-0">
-                      <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
-                    </div>
+                  {/* Right Column - Appointments */}
+                  <div className="min-h-0">
+                    <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
                   </div>
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, Users, Calendar, Star, TrendingUp, ToggleLeft, ToggleRight } from 'lucide-react';
+import { DollarSign, Users, Calendar, TrendingUp } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
 
 type BusinessMetric = Database['public']['Tables']['business_metrics']['Row'];
@@ -82,7 +82,7 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
         {
           id: 'revenue',
           label: revenueView === 'today' ? 'Revenue Today' : 'Revenue This Week',
-          value: revenueView === 'today' ? 847.50 : 4235.75,
+          value: revenueView === 'today' ? '$847' : '$4,236',
           change: revenueView === 'today' ? 12.5 : 8.3,
           icon: DollarSign,
           color: 'green',
@@ -106,15 +106,6 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
           color: 'purple',
           trend: 'down',
         },
-        {
-          id: 'satisfaction',
-          label: 'Overall Satisfaction',
-          value: '4.8/5',
-          change: 3.2,
-          icon: Star,
-          color: 'orange',
-          trend: 'up',
-        },
       ];
       setMetrics(mockMetrics);
 
@@ -126,12 +117,13 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
             let newValue = metric.value;
             
             if (typeof metric.value === 'number') {
-              if (metric.id === 'revenue') {
-                // For revenue, add small amounts
-                newValue = Math.max(0, metric.value + Math.random() * 25);
-              } else if (metric.id === 'customers' || metric.id === 'appointments') {
+              if (metric.id === 'customers' || metric.id === 'appointments') {
                 newValue = Math.max(0, metric.value + Math.floor(randomChange / 2));
               }
+            } else if (metric.id === 'revenue') {
+              // For revenue, add small amounts
+              const currentValue = parseFloat(metric.value.toString().replace(/[$,]/g, ''));
+              newValue = `$${Math.max(0, currentValue + Math.random() * 25).toLocaleString()}`;
             }
 
             return {
@@ -211,7 +203,7 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
         {
           id: 'revenue',
           label: revenueView === 'today' ? 'Revenue Today' : 'Revenue This Week',
-          value: revenueView === 'today' ? salesToday : salesWeek,
+          value: revenueView === 'today' ? `$${salesToday}` : `$${salesWeek}`,
           change: salesTodayChange,
           icon: DollarSign,
           color: 'green',
@@ -235,15 +227,6 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
           color: 'purple',
           trend: 'stable',
         },
-        {
-          id: 'satisfaction',
-          label: 'Overall Satisfaction',
-          value: '4.8/5',
-          change: 0,
-          icon: Star,
-          color: 'orange',
-          trend: 'stable',
-        },
       ];
 
       setMetrics(displayMetrics);
@@ -257,7 +240,6 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
       green: { bg: 'bg-green-50', text: 'text-green-900', icon: 'text-green-500', border: 'border-green-200' },
       blue: { bg: 'bg-blue-50', text: 'text-blue-900', icon: 'text-blue-500', border: 'border-blue-200' },
       purple: { bg: 'bg-purple-50', text: 'text-purple-900', icon: 'text-purple-500', border: 'border-purple-200' },
-      orange: { bg: 'bg-orange-50', text: 'text-orange-900', icon: 'text-orange-500', border: 'border-orange-200' },
     };
     return colorMap[color] || colorMap.blue;
   };
@@ -276,23 +258,12 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
     return '→';
   };
 
-  const formatValue = (metric: Metric) => {
-    if (metric.id === 'revenue') {
-      return `$${typeof metric.value === 'number' ? metric.value.toFixed(2) : metric.value}`;
-    }
-    return metric.value;
-  };
-
-  const toggleRevenueView = () => {
-    setRevenueView(prev => prev === 'today' ? 'week' : 'today');
-  };
-
   return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-300 overflow-hidden">
-      <div className="p-6 border-b border-gray-300">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
               <TrendingUp className="w-5 h-5 text-blue-500" />
               <span>Business Overview</span>
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -303,14 +274,14 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
               )}
             </h2>
             <p className="text-gray-600 text-sm mt-1">
-              Key performance indicators at a glance
+              Key performance indicators
             </p>
           </div>
         </div>
       </div>
 
-      <div className="p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {metrics.map((metric) => {
             const colors = getColorClasses(metric.color);
             const IconComponent = metric.icon;
@@ -318,38 +289,23 @@ const BusinessMetrics: React.FC<BusinessMetricsProps> = ({ businessId, isSimulat
             return (
               <div
                 key={metric.id}
-                className={`p-6 rounded-xl border ${colors.bg} ${colors.border} transition-all duration-300 hover:shadow-md relative`}
+                className={`p-4 rounded-lg border ${colors.bg} ${colors.border} transition-all duration-300 hover:shadow-md`}
               >
-                {/* Revenue Toggle Button */}
-                {metric.id === 'revenue' && (
-                  <button
-                    onClick={toggleRevenueView}
-                    className="absolute top-4 right-4 flex items-center space-x-1 text-xs font-medium text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    <span>{revenueView === 'today' ? 'Today' : 'Week'}</span>
-                    {revenueView === 'today' ? (
-                      <ToggleLeft className="w-4 h-4" />
-                    ) : (
-                      <ToggleRight className="w-4 h-4" />
-                    )}
-                  </button>
-                )}
-
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`p-3 rounded-lg bg-white/50`}>
-                    <IconComponent className={`w-6 h-6 ${colors.icon}`} />
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`p-2 rounded-lg bg-white/50`}>
+                    <IconComponent className={`w-4 h-4 ${colors.icon}`} />
                   </div>
-                  <div className={`flex items-center space-x-1 text-sm font-medium ${getTrendColor(metric.trend)}`}>
+                  <div className={`flex items-center space-x-1 text-xs font-medium ${getTrendColor(metric.trend)}`}>
                     <span>{getTrendIcon(metric.trend)}</span>
                     <span>{Math.abs(metric.change).toFixed(1)}%</span>
                   </div>
                 </div>
                 
                 <div>
-                  <div className={`text-3xl font-bold ${colors.text} mb-2`}>
-                    {formatValue(metric)}
+                  <div className={`text-xl font-bold ${colors.text} mb-1`}>
+                    {metric.value}
                   </div>
-                  <p className="text-sm text-gray-600 font-medium">{metric.label}</p>
+                  <p className="text-xs text-gray-600 font-medium">{metric.label}</p>
                 </div>
               </div>
             );
