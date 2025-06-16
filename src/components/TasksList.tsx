@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckSquare, Plus, Clock, AlertCircle, User, Calendar, Trash2, Filter, ArrowUpDown, ChevronDown, X, Check } from 'lucide-react';
 import { supabase, Database } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 type Task = Database['public']['Tables']['tasks']['Row'];
 
@@ -11,6 +12,7 @@ interface TasksListProps {
 }
 
 const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSimulating }) => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -32,9 +34,12 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
     'Alex Turner'
   ];
 
+  // Determine if we should use real data (user is authenticated and not simulating)
+  const useRealData = !isSimulating && user;
+
   // Real-time data fetching and subscription
   useEffect(() => {
-    if (!isSimulating) {
+    if (useRealData) {
       fetchTasks();
       
       // Set up real-time subscription
@@ -59,11 +64,11 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
         supabase.removeChannel(channel);
       };
     }
-  }, [businessId, isSimulating]);
+  }, [businessId, useRealData]);
 
   // Mock simulation data (existing logic)
   useEffect(() => {
-    if (isSimulating) {
+    if (!useRealData) {
       // Initialize with mock data
       const mockTasks: Task[] = [
         {
@@ -179,9 +184,11 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
 
       return () => clearInterval(interval);
     }
-  }, [businessId, compact, isSimulating]);
+  }, [businessId, compact, useRealData]);
 
   const fetchTasks = async () => {
+    if (!useRealData) return;
+    
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -201,7 +208,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
   };
 
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
-    if (!isSimulating) {
+    if (useRealData) {
       const { error } = await supabase
         .from('tasks')
         .update(updates)
@@ -245,19 +252,24 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
         category: 'General',
       };
 
-      if (!isSimulating) {
-        const { data, error } = await supabase
-          .from('tasks')
-          .insert(newTaskData)
-          .select()
-          .single();
+      if (useRealData) {
+        try {
+          const { data, error } = await supabase
+            .from('tasks')
+            .insert(newTaskData)
+            .select()
+            .single();
 
-        if (error) {
+          if (error) {
+            console.error('Error creating task:', error);
+            return;
+          }
+
+          // Task will be added via real-time subscription
+        } catch (error) {
           console.error('Error creating task:', error);
           return;
         }
-
-        // Task will be added via real-time subscription
       } else {
         // Simulation mode - add to local state
         const newTask: Task = {
@@ -281,7 +293,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
   };
 
   const deleteTask = async (taskId: string) => {
-    if (!isSimulating) {
+    if (useRealData) {
       const { error } = await supabase
         .from('tasks')
         .delete()
@@ -494,7 +506,7 @@ const TasksList: React.FC<TasksListProps> = ({ businessId, compact = false, isSi
             <h2 className="text-lg font-semibold text-gray-900 flex items-center space-x-2">
               <CheckSquare className="w-5 h-5 text-blue-500" />
               <span>Task List</span>
-              {!compact && !isSimulating && (
+              {!compact && useRealData && (
                 <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                   Live Data
                 </span>
