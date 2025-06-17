@@ -14,7 +14,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
 
   // Navigation component
-  const Navigation = () => (
+  const Navigation = ({ onNavigate }: { onNavigate: (page: string) => void }) => (
     <nav className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
@@ -29,7 +29,7 @@ function App() {
           {/* Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
             <button
-              onClick={() => setCurrentPage('home')}
+              onClick={() => onNavigate('home')}
               className={`text-sm font-medium transition-colors ${
                 currentPage === 'home' 
                   ? 'text-blue-600' 
@@ -41,7 +41,7 @@ function App() {
             
             <div className="relative group">
               <button
-                onClick={() => setCurrentPage('learnMore')}
+                onClick={() => onNavigate('learnMore')}
                 className={`flex items-center space-x-1 text-sm font-medium transition-colors ${
                   currentPage === 'learnMore' 
                     ? 'text-blue-600' 
@@ -54,7 +54,7 @@ function App() {
             </div>
             
             <button
-              onClick={() => setCurrentPage('pricing')}
+              onClick={() => onNavigate('pricing')}
               className={`text-sm font-medium transition-colors ${
                 currentPage === 'pricing' 
                   ? 'text-blue-600' 
@@ -65,7 +65,7 @@ function App() {
             </button>
             
             <button
-              onClick={() => setCurrentPage('demo')}
+              onClick={() => onNavigate('demo')}
               className={`text-sm font-medium transition-colors ${
                 currentPage === 'demo' 
                   ? 'text-blue-600' 
@@ -76,7 +76,7 @@ function App() {
             </button>
             
             <button
-              onClick={() => setCurrentPage('getStarted')}
+              onClick={() => onNavigate('getStarted')}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               Get Started
@@ -101,7 +101,13 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
       <div className="text-center">
         <h1 className="text-4xl font-bold text-gray-900 mb-4">{title}</h1>
-        <p className="text-gray-600">This page is coming soon.</p>
+        <p className="text-gray-600 mb-8">This page is coming soon.</p>
+        <button
+          onClick={() => setCurrentPage('home')}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+        >
+          Back to Home
+        </button>
       </div>
     </div>
   );
@@ -112,15 +118,35 @@ function App() {
       case 'demo':
         return <DemoPage />;
       case 'home':
-        return <HomePage />;
+        return <HomePage onNavigate={setCurrentPage} />;
       case 'learnMore':
         return <PlaceholderPage title="Learn More" />;
       case 'pricing':
         return <PlaceholderPage title="Pricing" />;
       case 'getStarted':
-        return <PlaceholderPage title="Get Started" />;
+        // For "Get Started", we want to show the authentication flow
+        if (authLoading || businessLoading) {
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading your dashboard...</p>
+              </div>
+            </div>
+          );
+        }
+
+        if (!user) {
+          return <AuthForm />;
+        }
+
+        if (!business) {
+          return <BusinessSetup />;
+        }
+
+        return <Dashboard business={business} />;
       case 'dashboard':
-        // Original dashboard logic
+        // Original dashboard logic for direct access
         if (authLoading || businessLoading) {
           return (
             <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
@@ -142,13 +168,13 @@ function App() {
 
         return <Dashboard business={business} />;
       default:
-        return <HomePage />;
+        return <HomePage onNavigate={setCurrentPage} />;
     }
   };
 
   return (
     <div className="min-h-screen">
-      {currentPage !== 'home' && <Navigation />}
+      {currentPage !== 'home' && <Navigation onNavigate={setCurrentPage} />}
       {renderPage()}
     </div>
   );

@@ -58,7 +58,7 @@ export const HeroWithMockup: React.FC<HeroWithMockupProps> = ({
           </p>
           
           {/* CTA buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <button
               onClick={() => handleCtaClick(primaryCta.href)}
               className="group bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center space-x-2"
@@ -76,30 +76,6 @@ export const HeroWithMockup: React.FC<HeroWithMockupProps> = ({
                 <span>{secondaryCta.text}</span>
               </button>
             )}
-          </div>
-          
-          {/* Mockup placeholder */}
-          <div className="relative max-w-5xl mx-auto">
-            <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
-              <div className="bg-gray-100 px-4 py-3 flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <div className="flex-1 text-center">
-                  <div className="bg-white rounded px-3 py-1 text-sm text-gray-600 inline-block">
-                    dashboard.voiceagent.ai
-                  </div>
-                </div>
-              </div>
-              <div className="aspect-video bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <ArrowRight className="w-8 h-8 text-white" />
-                  </div>
-                  <p className="text-gray-600 font-medium">Live Dashboard Preview Below</p>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,26 @@
 import React from 'react';
 import { Activity, ChevronDown } from 'lucide-react';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  onNavigate?: (page: string) => void;
+}
+
+const Navbar: React.FC<NavbarProps> = ({ onNavigate }) => {
+  const handleNavClick = (page: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    if (onNavigate) {
+      onNavigate(page);
+    }
+  };
+
+  const handleScrollTo = (elementId: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    const element = document.querySelector(elementId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -16,9 +35,12 @@ const Navbar: React.FC = () => {
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
-            <a href="#features" className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            <button 
+              onClick={(e) => handleScrollTo('#learn-more', e)}
+              className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
               Features
-            </a>
+            </button>
             
             <div className="relative group">
               <button className="flex items-center space-x-1 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
@@ -27,15 +49,24 @@ const Navbar: React.FC = () => {
               </button>
             </div>
             
-            <a href="#pricing" className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            <button 
+              onClick={(e) => handleScrollTo('#pricing', e)}
+              className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
               Pricing
-            </a>
+            </button>
             
-            <a href="#dashboard-demo" className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            <button 
+              onClick={(e) => handleScrollTo('#dashboard-demo', e)}
+              className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+            >
               Demo
-            </a>
+            </button>
             
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+            <button 
+              onClick={(e) => handleNavClick('getStarted', e)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            >
               Get Started
             </button>
           </div>
