@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, Zap } from 'lucide-react';
 import { useBusiness } from '../hooks/useBusiness';
-import { supabase } from '../lib/supabase';
 
 const VoiceAgentWidget: React.FC = () => {
   const [isListening, setIsListening] = useState(false);
@@ -11,8 +10,8 @@ const VoiceAgentWidget: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const { business } = useBusiness();
 
-  // Define client tools that the voice agent can use
-  const clientTools = business ? [
+  // Simple appointment booking tool - no auth bullshit
+  const clientTools = [
     {
       name: 'bookAppointment',
       description: 'Book a new appointment for a client',
@@ -42,45 +41,36 @@ const VoiceAgentWidget: React.FC = () => {
         try {
           console.log('Booking appointment with parameters:', parameters);
           
-          // Insert appointment into Supabase with the correct business_id
-          const { data, error } = await supabase
-            .from('appointments')
-            .insert({
-              business_id: business.id, // This is the key fix!
-              client_name: parameters.client_name,
-              service: parameters.service,
-              appointment_time: parameters.appointment_time,
-              client_phone: parameters.client_phone || null,
-              status: 'confirmed'
+          // Simple HTTP request to Supabase RPC endpoint
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/book_appointment`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+            },
+            body: JSON.stringify({
+              p_client_name: parameters.client_name,
+              p_service: parameters.service,
+              p_appointment_time: parameters.appointment_time,
+              p_client_phone: parameters.client_phone || null
             })
-            .select()
-            .single();
+          });
 
-          if (error) {
-            console.error('Error booking appointment:', error);
-            throw error;
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
 
-          console.log('Appointment booked successfully:', data);
+          const result = await response.json();
+          console.log('Appointment booking result:', result);
 
-          // Also log the call in the calls table
-          await supabase
-            .from('calls')
-            .insert({
-              business_id: business.id,
-              caller_name: parameters.client_name,
-              caller_phone: parameters.client_phone || null,
-              purpose: `Appointment booking - ${parameters.service}`,
-              status: 'completed',
-              duration: 120, // Approximate duration
-              started_at: new Date().toISOString(),
-              ended_at: new Date().toISOString()
-            });
-
-          return {
-            success: true,
-            message: `Appointment booked for ${parameters.client_name} on ${new Date(parameters.appointment_time).toLocaleDateString()} at ${new Date(parameters.appointment_time).toLocaleTimeString()}`
-          };
+          if (result.success) {
+            return {
+              success: true,
+              message: `Appointment booked for ${parameters.client_name} on ${new Date(parameters.appointment_time).toLocaleDateString()} at ${new Date(parameters.appointment_time).toLocaleTimeString()}`
+            };
+          } else {
+            throw new Error(result.message || 'Unknown error');
+          }
         } catch (error) {
           console.error('Failed to book appointment:', error);
           return {
@@ -89,120 +79,10 @@ const VoiceAgentWidget: React.FC = () => {
           };
         }
       }
-    },
-    {
-      name: 'checkAvailability',
-      description: 'Check available appointment slots',
-      parameters: {
-        type: 'object',
-        properties: {
-          date: {
-            type: 'string',
-            description: 'The date to check availability for'
-          }
-        },
-        required: ['date']
-      },
-      handler: async (parameters: any) => {
-        try {
-          const { data: appointments, error } = await supabase
-            .from('appointments')
-            .select('appointment_time')
-            .eq('business_id', business.id)
-            .gte('appointment_time', parameters.date)
-            .lt('appointment_time', new Date(new Date(parameters.date).getTime() + 24 * 60 * 60 * 1000).toISOString());
-
-          if (error) throw error;
-
-          const bookedTimes = appointments.map(apt => new Date(apt.appointment_time).getHours());
-          const availableSlots = [];
-          
-          // Generate available slots (9 AM to 5 PM)
-          for (let hour = 9; hour <= 17; hour++) {
-            if (!bookedTimes.includes(hour)) {
-              availableSlots.push(`${hour}:00`);
-            }
-          }
-
-          return {
-            success: true,
-            availableSlots,
-            message: `Available slots: ${availableSlots.join(', ')}`
-          };
-        } catch (error) {
-          console.error('Failed to check availability:', error);
-          return {
-            success: false,
-            message: 'Failed to check availability'
-          };
-        }
-      }
-    },
-    {
-      name: 'createTask',
-      description: 'Create a new task for the business',
-      parameters: {
-        type: 'object',
-        properties: {
-          title: {
-            type: 'string',
-            description: 'The task title'
-          },
-          description: {
-            type: 'string',
-            description: 'The task description'
-          },
-          priority: {
-            type: 'string',
-            enum: ['low', 'medium', 'high'],
-            description: 'The task priority'
-          },
-          assignee: {
-            type: 'string',
-            description: 'Who the task is assigned to'
-          }
-        },
-        required: ['title']
-      },
-      handler: async (parameters: any) => {
-        try {
-          const { data, error } = await supabase
-            .from('tasks')
-            .insert({
-              business_id: business.id,
-              title: parameters.title,
-              description: parameters.description || '',
-              priority: parameters.priority || 'medium',
-              assignee: parameters.assignee || null,
-              status: 'pending',
-              category: 'Voice Command'
-            })
-            .select()
-            .single();
-
-          if (error) throw error;
-
-          return {
-            success: true,
-            message: `Task "${parameters.title}" created successfully`
-          };
-        } catch (error) {
-          console.error('Failed to create task:', error);
-          return {
-            success: false,
-            message: 'Failed to create task'
-          };
-        }
-      }
     }
-  ] : [];
+  ];
 
   const toggleListening = async () => {
-    if (!business) {
-      console.error('No business found - cannot start voice agent');
-      return;
-    }
-
     if (!isListening) {
       try {
         // Start ElevenLabs conversation with client tools
@@ -226,7 +106,7 @@ const VoiceAgentWidget: React.FC = () => {
           const data = await response.json();
           setConversationId(data.conversation_id);
           setIsListening(true);
-          console.log('Voice agent started with business context:', business.name);
+          console.log('Voice agent started');
         } else {
           console.error('Failed to start conversation');
         }
@@ -257,7 +137,7 @@ const VoiceAgentWidget: React.FC = () => {
 
   // Listen for client tool calls from ElevenLabs
   useEffect(() => {
-    if (!conversationId || !business) return;
+    if (!conversationId) return;
 
     const handleClientToolCall = async (event: MessageEvent) => {
       if (event.data.type === 'client_tool_call') {
@@ -281,7 +161,7 @@ const VoiceAgentWidget: React.FC = () => {
 
     window.addEventListener('message', handleClientToolCall);
     return () => window.removeEventListener('message', handleClientToolCall);
-  }, [conversationId, business, clientTools]);
+  }, [conversationId, clientTools]);
 
   return (
     <div className="flex items-center space-x-4">
@@ -299,13 +179,10 @@ const VoiceAgentWidget: React.FC = () => {
       {/* Voice Agent Button */}
       <button
         onClick={toggleListening}
-        disabled={!business}
         className={`relative flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
           isListening
             ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg scale-105'
-            : business
-            ? 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
-            : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+            : 'bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg'
         }`}
       >
         {/* Pulse Animation for Listening State */}
