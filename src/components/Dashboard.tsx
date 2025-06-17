@@ -9,7 +9,7 @@ import LiveCallsWidget from './LiveCallsWidget';
 import LiveFeed from './LiveFeed';
 import { useAuth } from '../hooks/useAuth';
 import { Database } from '../lib/supabase';
-import { Activity, Calendar, Package, BarChart3, CheckSquare, LogOut, Rss } from 'lucide-react';
+import { Activity, Calendar, Package, BarChart3, CheckSquare, LogOut, Rss, User, Zap, Info } from 'lucide-react';
 
 type Business = Database['public']['Tables']['businesses']['Row'];
 
@@ -24,7 +24,8 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
     const saved = localStorage.getItem('dashboard-live-mode');
     return saved ? JSON.parse(saved) : false;
   });
-  const { signOut } = useAuth();
+  const [showDemoBanner, setShowDemoBanner] = useState(true);
+  const { signOut, switchToRealAccount, isDemoUser } = useAuth();
 
   // Save to localStorage whenever isLiveMode changes
   useEffect(() => {
@@ -35,12 +36,45 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
     await signOut();
   };
 
+  const handleSwitchToRealAccount = async () => {
+    await switchToRealAccount();
+  };
+
   const toggleDataMode = () => {
     setIsLiveMode(!isLiveMode);
   };
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50 flex flex-col">
+      {/* Demo Banner */}
+      {isDemoUser && showDemoBanner && (
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-3 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center space-x-3">
+            <Zap className="w-5 h-5" />
+            <div>
+              <span className="font-semibold">Demo Mode Active</span>
+              <span className="mx-2">•</span>
+              <span className="text-blue-100">You're exploring a fully functional business dashboard</span>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleSwitchToRealAccount}
+              className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 py-1.5 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2"
+            >
+              <User className="w-4 h-4" />
+              <span>Sign In</span>
+            </button>
+            <button
+              onClick={() => setShowDemoBanner(false)}
+              className="text-white hover:text-gray-200 transition-colors"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header - Fixed height */}
       <header className="bg-white shadow-sm border-b border-gray-200 flex-shrink-0">
         <div className="h-16 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
@@ -49,7 +83,14 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
               <Activity className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">{business.name}</h1>
+              <h1 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+                <span>{business.name}</span>
+                {isDemoUser && (
+                  <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                    Demo
+                  </span>
+                )}
+              </h1>
               <p className="text-sm text-gray-500 capitalize">{business.type} Dashboard</p>
             </div>
             
@@ -72,13 +113,24 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
           
           <div className="flex items-center space-x-4">
             <VoiceAgentWidget />
-            <button
-              onClick={handleSignOut}
-              className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
+            
+            {isDemoUser ? (
+              <button
+                onClick={handleSwitchToRealAccount}
+                className="flex items-center space-x-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium"
+              >
+                <User className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign In</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleSignOut}
+                className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
