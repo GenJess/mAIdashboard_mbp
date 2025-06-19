@@ -9,9 +9,15 @@ interface AppointmentsFeedProps {
   businessId: string;
   isSimulating?: boolean;
   dashboardMode?: boolean;
+  isDemoUser?: boolean;
 }
 
-const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimulating, dashboardMode = false }) => {
+const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ 
+  businessId, 
+  isSimulating, 
+  dashboardMode = false,
+  isDemoUser = false 
+}) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -22,7 +28,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
     if (!isSimulating) {
       fetchAppointments();
       
-      // Set up real-time subscription
+      // Set up real-time subscription - NO business_id filter in demo mode
       const channel = supabase
         .channel('appointments_changes')
         .on(
@@ -31,11 +37,12 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
             event: '*',
             schema: 'public',
             table: 'appointments',
-            filter: `business_id=eq.${businessId}`,
+            // Only filter by business_id if NOT demo user
+            ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
           },
           (payload) => {
             console.log('Appointment change received:', payload);
-            fetchAppointments(); // Refetch data on any change
+            fetchAppointments();
           }
         )
         .subscribe();
@@ -44,7 +51,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
         supabase.removeChannel(channel);
       };
     }
-  }, [businessId, isSimulating]);
+  }, [businessId, isSimulating, isDemoUser]);
 
   // Mock simulation data (existing logic)
   useEffect(() => {
@@ -58,7 +65,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
           client_phone: '(555) 123-4567',
           service: 'Haircut & Wash',
           status: 'confirmed',
-          appointment_time: new Date(Date.now() + 5 * 60000).toISOString(), // 5 minutes from now
+          appointment_time: new Date(Date.now() + 5 * 60000).toISOString(),
           created_at: new Date(Date.now() - 30 * 60000).toISOString(),
           updated_at: new Date(Date.now() - 30 * 60000).toISOString(),
         },
@@ -69,7 +76,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
           client_phone: '(555) 987-6543',
           service: 'Color Treatment',
           status: 'pending',
-          appointment_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(), // 2 hours from now
+          appointment_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
           created_at: new Date(Date.now() - 15 * 60000).toISOString(),
           updated_at: new Date(Date.now() - 15 * 60000).toISOString(),
         },
@@ -80,7 +87,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
           client_phone: '(555) 456-7890',
           service: 'Beard Trim',
           status: 'confirmed',
-          appointment_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(), // 4 hours from now
+          appointment_time: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
           created_at: new Date(Date.now() - 45 * 60000).toISOString(),
           updated_at: new Date(Date.now() - 45 * 60000).toISOString(),
         },
@@ -91,7 +98,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
           client_phone: '(555) 321-0987',
           service: 'Styling',
           status: 'confirmed',
-          appointment_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 1 day from now
+          appointment_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           created_at: new Date(Date.now() - 60 * 60000).toISOString(),
           updated_at: new Date(Date.now() - 60 * 60000).toISOString(),
         },
@@ -117,14 +124,14 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
           client_phone: `(555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
           service: services[Math.floor(Math.random() * services.length)],
           status: ['confirmed', 'pending'][Math.floor(Math.random() * 2)] as any,
-          appointment_time: new Date(Date.now() + Math.random() * 48 * 60 * 60 * 1000).toISOString(), // Random time in next 48 hours
+          appointment_time: new Date(Date.now() + Math.random() * 48 * 60 * 60 * 1000).toISOString(),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
 
         setAppointments(prev => {
           const updated = [newAppointment, ...prev];
-          return updated.slice(0, 20); // Keep only latest 20 appointments
+          return updated.slice(0, 20);
         });
       }, 10000);
 
@@ -134,18 +141,26 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
 
   const fetchAppointments = async () => {
     try {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('*')
-        .eq('business_id', businessId)
-        .gte('appointment_time', new Date().toISOString()) // Only upcoming appointments
-        .order('appointment_time', { ascending: true });
+      let query = supabase.from('appointments').select('*');
+      
+      // In demo mode: Show ALL appointments from database
+      // In real mode: Filter by business_id
+      if (!isDemoUser) {
+        query = query.eq('business_id', businessId);
+      }
+      
+      // Get recent appointments
+      const { data, error } = await query
+        .gte('appointment_time', new Date().toISOString())
+        .order('appointment_time', { ascending: true })
+        .limit(50);
 
       if (error) {
         console.error('Error fetching appointments:', error);
         return;
       }
 
+      console.log(`Fetched ${data?.length || 0} appointments (demo mode: ${isDemoUser})`);
       setAppointments(data || []);
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -238,6 +253,11 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
     return diffInMinutes >= -15 && diffInMinutes <= 15;
   };
 
+  const isVoiceAgentBooking = (appointment: Appointment) => {
+    // Check if it's a voice agent booking (no business_id or specific patterns)
+    return !appointment.business_id || appointment.client_phone === '1112223333';
+  };
+
   const displayedAppointments = appointments.slice(0, displayLimit);
   const hasMoreAppointments = appointments.length > displayLimit;
 
@@ -255,14 +275,23 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                 <Calendar className="w-5 h-5 text-blue-500" />
                 <span>Upcoming Appointments</span>
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                {!isSimulating && (
+                {isDemoUser && (
+                  <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                    All Activity
+                  </span>
+                )}
+                {!isSimulating && !isDemoUser && (
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                     Live Data
                   </span>
                 )}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                {isSimulating ? 'Simulated upcoming appointments' : 'Real-time upcoming appointments'}
+                {isDemoUser 
+                  ? 'All appointments from database (including voice agent bookings)'
+                  : isSimulating 
+                    ? 'Simulated upcoming appointments' 
+                    : 'Real-time upcoming appointments'}
               </p>
             </div>
           </div>
@@ -282,6 +311,7 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
           <div className="space-y-2 p-4">
             {displayedAppointments.map((appointment) => {
               const isLive = isLiveAppointment(appointment.appointment_time);
+              const isVoiceAgent = isVoiceAgentBooking(appointment);
               
               return (
                 <div
@@ -289,12 +319,16 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                   className={`p-3 rounded-lg border transition-all duration-300 ${
                     isLive 
                       ? 'bg-orange-50 border-orange-200 ring-2 ring-orange-300' 
+                      : isVoiceAgent
+                      ? 'bg-purple-50 border-purple-200 ring-1 ring-purple-300'
                       : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
                   }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-3 flex-1">
-                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        isVoiceAgent ? 'bg-gradient-to-r from-purple-500 to-indigo-600' : 'bg-gradient-to-r from-blue-500 to-purple-600'
+                      }`}>
                         <User className="w-4 h-4 text-white" />
                       </div>
                       <div className="flex-1">
@@ -304,6 +338,12 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                             <span className="px-2 py-1 text-xs font-bold bg-orange-500 text-white rounded-full animate-pulse flex items-center space-x-1">
                               <Zap className="w-3 h-3" />
                               <span>LIVE NOW</span>
+                            </span>
+                          )}
+                          {isVoiceAgent && (
+                            <span className="px-2 py-1 text-xs font-bold bg-purple-500 text-white rounded-full flex items-center space-x-1">
+                              <Zap className="w-3 h-3" />
+                              <span>Voice Agent</span>
                             </span>
                           )}
                         </div>
@@ -346,7 +386,11 @@ const AppointmentsFeed: React.FC<AppointmentsFeedProps> = ({ businessId, isSimul
                 <Calendar className="w-8 h-8 mx-auto mb-3 text-gray-300" />
                 <p className="text-sm">No upcoming appointments</p>
                 <p className="text-xs">
-                  {isSimulating ? 'Simulated bookings will appear here' : 'New bookings will appear here in real-time'}
+                  {isDemoUser 
+                    ? 'Voice agent bookings will appear here'
+                    : isSimulating 
+                      ? 'Simulated bookings will appear here' 
+                      : 'New bookings will appear here in real-time'}
                 </p>
               </div>
             )}

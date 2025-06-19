@@ -16,9 +16,15 @@ interface LiveFeedProps {
   businessId: string;
   isSimulating?: boolean;
   dashboardMode?: boolean;
+  isDemoUser?: boolean;
 }
 
-const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboardMode = false }) => {
+const LiveFeed: React.FC<LiveFeedProps> = ({ 
+  businessId, 
+  isSimulating, 
+  dashboardMode = false,
+  isDemoUser = false 
+}) => {
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [filter, setFilter] = useState<string>('all');
   const [isConnected, setIsConnected] = useState(false);
@@ -29,7 +35,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
     if (!isSimulating) {
       fetchInitialActivities();
       
-      // Set up real-time subscriptions for all tables
+      // Set up real-time subscriptions for all tables - NO business_id filter in demo mode
       const channels = [
         // Appointments
         supabase
@@ -40,11 +46,12 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
               event: '*',
               schema: 'public',
               table: 'appointments',
-              filter: `business_id=eq.${businessId}`,
+              // Only filter by business_id if NOT demo user
+              ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
             },
             (payload) => {
               console.log('Real-time appointment update:', payload);
-              setIsConnected(true); // Set connected when we receive data
+              setIsConnected(true);
               handleRealtimeUpdate('appointment', payload);
             }
           ),
@@ -58,7 +65,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
               event: '*',
               schema: 'public',
               table: 'tasks',
-              filter: `business_id=eq.${businessId}`,
+              ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
             },
             (payload) => {
               console.log('Real-time task update:', payload);
@@ -76,7 +83,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
               event: '*',
               schema: 'public',
               table: 'inventory_items',
-              filter: `business_id=eq.${businessId}`,
+              ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
             },
             (payload) => {
               console.log('Real-time inventory update:', payload);
@@ -94,7 +101,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
               event: '*',
               schema: 'public',
               table: 'menu_items',
-              filter: `business_id=eq.${businessId}`,
+              ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
             },
             (payload) => {
               console.log('Real-time menu update:', payload);
@@ -112,7 +119,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
               event: '*',
               schema: 'public',
               table: 'calls',
-              filter: `business_id=eq.${businessId}`,
+              ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
             },
             (payload) => {
               console.log('Real-time call update:', payload);
@@ -130,7 +137,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
               event: '*',
               schema: 'public',
               table: 'business_metrics',
-              filter: `business_id=eq.${businessId}`,
+              ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
             },
             (payload) => {
               console.log('Real-time metrics update:', payload);
@@ -160,19 +167,46 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
       setIsConnected(true);
       generateMockActivities();
     }
-  }, [businessId, isSimulating, dashboardMode]);
+  }, [businessId, isSimulating, dashboardMode, isDemoUser]);
 
   const fetchInitialActivities = async () => {
     try {
-      // Fetch recent data from all tables to populate initial feed
-      const [appointments, tasks, inventory, menuItems, calls, metrics] = await Promise.all([
-        supabase.from('appointments').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('tasks').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('inventory_items').select('*').eq('business_id', businessId).order('updated_at', { ascending: false }).limit(5),
-        supabase.from('menu_items').select('*').eq('business_id', businessId).order('updated_at', { ascending: false }).limit(5),
-        supabase.from('calls').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
-        supabase.from('business_metrics').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
-      ]);
+      // Build queries based on demo mode
+      const queries = [];
+      
+      if (isDemoUser) {
+        // Demo mode: Fetch ALL data without business_id filter
+        queries.push(
+          supabase.from('appointments').select('*').order('created_at', { ascending: false }).limit(10),
+          supabase.from('tasks').select('*').order('created_at', { ascending: false }).limit(10),
+          supabase.from('inventory_items').select('*').order('updated_at', { ascending: false }).limit(10),
+          supabase.from('menu_items').select('*').order('updated_at', { ascending: false }).limit(10),
+          supabase.from('calls').select('*').order('created_at', { ascending: false }).limit(10),
+          supabase.from('business_metrics').select('*').order('created_at', { ascending: false }).limit(10)
+        );
+      } else {
+        // Real user mode: Filter by business_id
+        queries.push(
+          supabase.from('appointments').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
+          supabase.from('tasks').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
+          supabase.from('inventory_items').select('*').eq('business_id', businessId).order('updated_at', { ascending: false }).limit(5),
+          supabase.from('menu_items').select('*').eq('business_id', businessId).order('updated_at', { ascending: false }).limit(5),
+          supabase.from('calls').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5),
+          supabase.from('business_metrics').select('*').eq('business_id', businessId).order('created_at', { ascending: false }).limit(5)
+        );
+      }
+
+      const [appointments, tasks, inventory, menuItems, calls, metrics] = await Promise.all(queries);
+
+      console.log('Fetched initial data:', {
+        appointments: appointments.data?.length || 0,
+        tasks: tasks.data?.length || 0,
+        inventory: inventory.data?.length || 0,
+        menuItems: menuItems.data?.length || 0,
+        calls: calls.data?.length || 0,
+        metrics: metrics.data?.length || 0,
+        demoMode: isDemoUser
+      });
 
       const initialActivities: ActivityItem[] = [];
 
@@ -533,14 +567,21 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
                 <Activity className="w-5 h-5 text-blue-500" />
                 <span>Recent Activity</span>
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                {!isSimulating && (
+                {isDemoUser && (
+                  <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                    All Activity
+                  </span>
+                )}
+                {!isSimulating && !isDemoUser && (
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                     Live Data
                   </span>
                 )}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                Customer-focused activity updates
+                {isDemoUser 
+                  ? 'All customer activity from database'
+                  : 'Customer-focused activity updates'}
               </p>
             </div>
           </div>
@@ -632,14 +673,23 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
                 <Activity className="w-5 h-5 text-blue-500" />
                 <span>Live Activity Feed</span>
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                {!isSimulating && (
+                {isDemoUser && (
+                  <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                    All Activity
+                  </span>
+                )}
+                {!isSimulating && !isDemoUser && (
                   <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                     Live Data
                   </span>
                 )}
               </h2>
               <p className="text-gray-600 text-sm mt-1">
-                {isSimulating ? 'Simulated real-time activity updates' : 'Real-time activity updates from your business'}
+                {isDemoUser 
+                  ? 'All real-time activity from entire database'
+                  : isSimulating 
+                    ? 'Simulated real-time activity updates' 
+                    : 'Real-time activity updates from your business'}
               </p>
             </div>
             
@@ -668,6 +718,7 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
                 <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                 <span className="text-gray-600">
                   {isConnected ? 'Connected to live data stream' : 'Connecting...'}
+                  {isDemoUser && ' (All database activity)'}
                 </span>
               </div>
               
@@ -754,9 +805,11 @@ const LiveFeed: React.FC<LiveFeedProps> = ({ businessId, isSimulating, dashboard
               <Activity className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium mb-2">No activities yet</p>
               <p className="text-sm">
-                {isSimulating 
-                  ? 'Simulated activities will appear here as they happen'
-                  : 'Real-time activities will appear here as they happen'
+                {isDemoUser
+                  ? 'All database activities will appear here as they happen'
+                  : isSimulating 
+                    ? 'Simulated activities will appear here as they happen'
+                    : 'Real-time activities will appear here as they happen'
                 }
               </p>
             </div>

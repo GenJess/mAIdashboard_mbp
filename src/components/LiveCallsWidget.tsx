@@ -12,27 +12,149 @@ interface LiveCall {
   status: 'incoming' | 'active' | 'on-hold';
   startTime: Date;
   purpose?: string;
+  isVoiceAgent?: boolean;
+  agentSpeaking?: boolean;
+  userSpeaking?: boolean;
+  vadScore?: number;
 }
 
 interface LiveCallsWidgetProps {
   businessId: string;
   isSimulating?: boolean;
   dashboardMode?: boolean;
+  isDemoUser?: boolean;
 }
 
-const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulating, dashboardMode = false }) => {
+const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ 
+  businessId, 
+  isSimulating, 
+  dashboardMode = false,
+  isDemoUser = false 
+}) => {
   const [activeCalls, setActiveCalls] = useState<LiveCall[]>([]);
   const [callHistory, setCallHistory] = useState<Array<{ caller: string; time: Date; duration: number }>>([]);
   const [isAgentActive, setIsAgentActive] = useState(false);
   const [dbCalls, setDbCalls] = useState<Call[]>([]);
   const [displayLimit, setDisplayLimit] = useState(5);
+  const [elevenLabsCallActive, setElevenLabsCallActive] = useState(false);
+  const [currentElevenLabsCall, setCurrentElevenLabsCall] = useState<LiveCall | null>(null);
+
+  // Listen for ElevenLabs widget events
+  useEffect(() => {
+    const handleElevenLabsEvents = (event: any) => {
+      console.log('ElevenLabs event received:', event);
+
+      // Listen for conversation start
+      if (event.data?.type === 'conversation_initiation_metadata') {
+        const newCall: LiveCall = {
+          id: event.data.conversation_initiation_metadata_event?.conversation_id || Date.now().toString(),
+          caller: 'Live Caller',
+          phoneNumber: 'Voice Call',
+          duration: 0,
+          status: 'active',
+          startTime: new Date(),
+          purpose: 'Voice conversation',
+          isVoiceAgent: true,
+          agentSpeaking: false,
+          userSpeaking: false,
+          vadScore: 0
+        };
+
+        setCurrentElevenLabsCall(newCall);
+        setActiveCalls([newCall]);
+        setElevenLabsCallActive(true);
+        setIsAgentActive(true);
+      }
+
+      // Listen for agent responses
+      if (event.data?.type === 'agent_response') {
+        setCurrentElevenLabsCall(prev => prev ? {
+          ...prev,
+          agentSpeaking: true,
+          userSpeaking: false
+        } : null);
+      }
+
+      // Listen for user transcripts
+      if (event.data?.type === 'user_transcript') {
+        setCurrentElevenLabsCall(prev => prev ? {
+          ...prev,
+          agentSpeaking: false,
+          userSpeaking: true,
+          caller: event.data.user_transcription_event?.user_transcript || prev.caller
+        } : null);
+      }
+
+      // Listen for voice activity detection
+      if (event.data?.type === 'vad_score') {
+        const vadScore = event.data.vad_score_event?.vad_score || 0;
+        setCurrentElevenLabsCall(prev => prev ? {
+          ...prev,
+          vadScore,
+          userSpeaking: vadScore > 0.5,
+          agentSpeaking: vadScore <= 0.5 && prev.agentSpeaking
+        } : null);
+      }
+
+      // Listen for audio events (agent speaking)
+      if (event.data?.type === 'audio') {
+        setCurrentElevenLabsCall(prev => prev ? {
+          ...prev,
+          agentSpeaking: true,
+          userSpeaking: false
+        } : null);
+      }
+    };
+
+    // Listen for postMessage events from ElevenLabs widget
+    window.addEventListener('message', handleElevenLabsEvents);
+
+    // Also listen for custom events from ElevenLabs widget
+    const handleCustomEvents = (event: CustomEvent) => {
+      handleElevenLabsEvents({ data: event.detail });
+    };
+
+    window.addEventListener('elevenlabs-conversation-start' as any, handleCustomEvents);
+    window.addEventListener('elevenlabs-agent-response' as any, handleCustomEvents);
+    window.addEventListener('elevenlabs-user-transcript' as any, handleCustomEvents);
+    window.addEventListener('elevenlabs-vad-score' as any, handleCustomEvents);
+
+    return () => {
+      window.removeEventListener('message', handleElevenLabsEvents);
+      window.removeEventListener('elevenlabs-conversation-start' as any, handleCustomEvents);
+      window.removeEventListener('elevenlabs-agent-response' as any, handleCustomEvents);
+      window.removeEventListener('elevenlabs-user-transcript' as any, handleCustomEvents);
+      window.removeEventListener('elevenlabs-vad-score' as any, handleCustomEvents);
+    };
+  }, []);
+
+  // Update call duration
+  useEffect(() => {
+    if (currentElevenLabsCall) {
+      const interval = setInterval(() => {
+        setCurrentElevenLabsCall(prev => prev ? {
+          ...prev,
+          duration: Math.floor((new Date().getTime() - prev.startTime.getTime()) / 1000)
+        } : null);
+
+        setActiveCalls(prev => 
+          prev.map(call => call.isVoiceAgent ? {
+            ...call,
+            duration: Math.floor((new Date().getTime() - call.startTime.getTime()) / 1000)
+          } : call)
+        );
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [currentElevenLabsCall]);
 
   // Real-time data fetching and subscription
   useEffect(() => {
     if (!isSimulating) {
       fetchCalls();
       
-      // Set up real-time subscription
+      // Set up real-time subscription - NO business_id filter in demo mode
       const channel = supabase
         .channel('calls_changes')
         .on(
@@ -41,11 +163,12 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
             event: '*',
             schema: 'public',
             table: 'calls',
-            filter: `business_id=eq.${businessId}`,
+            // Only filter by business_id if NOT demo user
+            ...(isDemoUser ? {} : { filter: `business_id=eq.${businessId}` })
           },
           (payload) => {
             console.log('Call change received:', payload);
-            fetchCalls(); // Refetch data on any change
+            fetchCalls();
           }
         )
         .subscribe();
@@ -54,7 +177,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
         supabase.removeChannel(channel);
       };
     }
-  }, [businessId, isSimulating]);
+  }, [businessId, isSimulating, isDemoUser]);
 
   // Mock simulation data (existing logic)
   useEffect(() => {
@@ -62,7 +185,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
       const interval = setInterval(() => {
         const shouldStartCall = Math.random() > 0.85; // 15% chance every interval
         
-        if (shouldStartCall && activeCalls.length === 0) {
+        if (shouldStartCall && activeCalls.filter(call => !call.isVoiceAgent).length === 0) {
           const callers = [
             { name: 'Sarah Johnson', phone: '(555) 123-4567', purpose: 'Appointment booking' },
             { name: 'Mike Davis', phone: '(555) 987-6543', purpose: 'Service inquiry' },
@@ -81,9 +204,10 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
             status: 'incoming',
             startTime: new Date(),
             purpose: randomCaller.purpose,
+            isVoiceAgent: false,
           };
           
-          setActiveCalls([newCall]);
+          setActiveCalls(prev => [...prev, newCall]);
           setIsAgentActive(true);
           
           // Auto-answer after 3 seconds
@@ -114,7 +238,14 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
               }
               return prev.filter(call => call.id !== newCall.id);
             });
-            setIsAgentActive(false);
+            
+            // Only set agent inactive if no other calls
+            setActiveCalls(current => {
+              if (current.length <= 1) {
+                setIsAgentActive(false);
+              }
+              return current.filter(call => call.id !== newCall.id);
+            });
           }, callDuration);
         }
       }, 8000);
@@ -123,27 +254,17 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
     }
   }, [activeCalls.length, isSimulating]);
 
-  // Update call duration
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveCalls(prevCalls =>
-        prevCalls.map(call => ({
-          ...call,
-          duration: Math.floor((new Date().getTime() - call.startTime.getTime()) / 1000),
-        }))
-      );
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
   const fetchCalls = async () => {
     try {
-      const { data, error } = await supabase
-        .from('calls')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('created_at', { ascending: false });
+      let query = supabase.from('calls').select('*');
+      
+      // In demo mode: Show ALL calls from database
+      // In real mode: Filter by business_id
+      if (!isDemoUser) {
+        query = query.eq('business_id', businessId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching calls:', error);
@@ -191,14 +312,12 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
     }
   };
 
-  const displayCalls = isSimulating ? activeCalls : [];
-  const displayHistory = isSimulating ? callHistory.slice(0, displayLimit) : callHistory.slice(0, displayLimit);
-  const totalCalls = isSimulating ? callHistory.length : dbCalls.length;
-  const avgDuration = isSimulating 
-    ? (callHistory.length > 0 ? Math.round(callHistory.reduce((acc, call) => acc + call.duration, 0) / callHistory.length) : 0)
-    : (dbCalls.length > 0 ? Math.round(dbCalls.reduce((acc, call) => acc + (call.duration || 0), 0) / dbCalls.length) : 0);
+  const displayCalls = activeCalls;
+  const displayHistory = callHistory.slice(0, displayLimit);
+  const totalCalls = dbCalls.length;
+  const avgDuration = dbCalls.length > 0 ? Math.round(dbCalls.reduce((acc, call) => acc + (call.duration || 0), 0) / dbCalls.length) : 0;
 
-  const hasMoreCalls = (isSimulating ? callHistory.length : callHistory.length) > displayLimit;
+  const hasMoreCalls = callHistory.length > displayLimit;
 
   const loadMoreCalls = () => {
     setDisplayLimit(prev => prev + 5);
@@ -213,7 +332,12 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
               <Phone className="w-5 h-5 text-blue-500" />
               <span>Live Calls</span>
               <div className={`w-2 h-2 rounded-full ${isAgentActive ? 'bg-green-500 animate-pulse' : 'bg-gray-300'}`}></div>
-              {!isSimulating && (
+              {isDemoUser && (
+                <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+                  All Activity
+                </span>
+              )}
+              {!isSimulating && !isDemoUser && (
                 <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                   Live Data
                 </span>
@@ -221,6 +345,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
             </h2>
             <p className="text-gray-600 text-sm mt-1">
               {displayCalls.length > 0 ? 'AI agent handling calls' : 'Waiting for calls'}
+              {elevenLabsCallActive && ' • Voice agent active'}
             </p>
           </div>
           
@@ -245,27 +370,38 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
           <div className="p-4 border-b border-gray-200">
             <h3 className="text-base font-semibold text-gray-900 mb-3 flex items-center space-x-2">
               <PhoneCall className="w-4 h-4 text-green-500" />
-              <span>Active Call</span>
+              <span>Active Call{displayCalls.length > 1 ? 's' : ''}</span>
             </h3>
             
             {displayCalls.map((call) => (
               <div
                 key={call.id}
-                className={`p-3 rounded-lg border transition-all duration-300 ${
-                  call.status === 'incoming' 
-                    ? 'bg-yellow-50 border-yellow-200 animate-pulse' 
-                    : 'bg-green-50 border-green-200'
+                className={`p-3 rounded-lg border transition-all duration-300 mb-2 ${
+                  call.isVoiceAgent
+                    ? 'bg-purple-50 border-purple-200 ring-2 ring-purple-300'
+                    : call.status === 'incoming' 
+                      ? 'bg-yellow-50 border-yellow-200 animate-pulse' 
+                      : 'bg-green-50 border-green-200'
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-start space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      call.status === 'incoming' ? 'bg-yellow-500' : 'bg-green-500'
+                      call.isVoiceAgent
+                        ? 'bg-purple-500'
+                        : call.status === 'incoming' ? 'bg-yellow-500' : 'bg-green-500'
                     }`}>
                       <User className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900 text-sm">{call.caller}</h4>
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h4 className="font-medium text-gray-900 text-sm">{call.caller}</h4>
+                        {call.isVoiceAgent && (
+                          <span className="px-2 py-1 text-xs font-bold bg-purple-500 text-white rounded-full">
+                            Voice Agent
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-600">{call.phoneNumber}</p>
                       {call.purpose && (
                         <p className="text-xs text-gray-500 mt-1">{call.purpose}</p>
@@ -279,6 +415,25 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
                           <Volume2 className="w-3 h-3" />
                           <span>AI Agent</span>
                         </span>
+                        {call.isVoiceAgent && (
+                          <div className="flex items-center space-x-2">
+                            {call.agentSpeaking && (
+                              <span className="px-2 py-1 bg-blue-500 text-white text-xs rounded-full animate-pulse">
+                                Agent Speaking
+                              </span>
+                            )}
+                            {call.userSpeaking && (
+                              <span className="px-2 py-1 bg-green-500 text-white text-xs rounded-full animate-pulse">
+                                Customer Speaking
+                              </span>
+                            )}
+                            {call.vadScore !== undefined && (
+                              <span className="text-xs text-gray-400">
+                                VAD: {Math.round(call.vadScore * 100)}%
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -351,7 +506,7 @@ const LiveCallsWidget: React.FC<LiveCallsWidgetProps> = ({ businessId, isSimulat
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
               <div className="text-lg font-bold text-blue-600">{totalCalls}</div>
-              <div className="text-xs text-gray-600">Calls Today</div>
+              <div className="text-xs text-gray-600">Total Calls</div>
             </div>
             <div>
               <div className="text-lg font-bold text-green-600">{avgDuration}s</div>

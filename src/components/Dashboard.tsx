@@ -178,12 +178,22 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
                 <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-0">
                   {/* Left Column - Live Calls */}
                   <div className="min-h-0">
-                    <LiveCallsWidget businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                    <LiveCallsWidget 
+                      businessId={business.id} 
+                      isSimulating={!isLiveMode} 
+                      dashboardMode={true}
+                      isDemoUser={isDemoUser}
+                    />
                   </div>
                   
                   {/* Right Column - Appointments */}
                   <div className="min-h-0">
-                    <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} dashboardMode={true} />
+                    <AppointmentsFeed 
+                      businessId={business.id} 
+                      isSimulating={!isLiveMode} 
+                      dashboardMode={true}
+                      isDemoUser={isDemoUser}
+                    />
                   </div>
                 </div>
               </div>
@@ -195,7 +205,11 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
                   <CalendarView businessId={business.id} isSimulating={!isLiveMode} />
                 </div>
                 <div className="min-h-0">
-                  <AppointmentsFeed businessId={business.id} isSimulating={!isLiveMode} />
+                  <AppointmentsFeed 
+                    businessId={business.id} 
+                    isSimulating={!isLiveMode}
+                    isDemoUser={isDemoUser}
+                  />
                 </div>
               </div>
             )}
@@ -214,7 +228,11 @@ const Dashboard: React.FC<DashboardProps> = ({ business }) => {
 
             {activeTab === 'livefeed' && (
               <div className="h-full overflow-auto">
-                <LiveFeed businessId={business.id} isSimulating={!isLiveMode} />
+                <LiveFeed 
+                  businessId={business.id} 
+                  isSimulating={!isLiveMode}
+                  isDemoUser={isDemoUser}
+                />
               </div>
             )}
           </div>
